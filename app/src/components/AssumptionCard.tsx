@@ -111,10 +111,13 @@ export function AssumptionCard({
             {votes.length > 0 && (
               <button
                 type="button"
-                className="link link-hover text-xs"
+                className="flex items-center gap-1 text-sm font-semibold text-base-content hover:text-primary transition-colors"
                 onClick={() => setShowLog((v) => !v)}
               >
-                {showLog ? 'Log verbergen' : 'Log anzeigen'}
+                Details
+                <span className={`transition-transform ${showLog ? 'rotate-180' : ''}`}>
+                  ▼
+                </span>
               </button>
             )}
           </div>
@@ -135,8 +138,8 @@ export function AssumptionCard({
                     >
                       {vote.value === 'green' ? '🟢' : vote.value === 'yellow' ? '🟡' : '🔴'}
                     </span>
-                    <span className="truncate max-w-[120px]" title={vote.voterDid}>
-                      {vote.voterDid.slice(0, 8)}...
+                    <span className="truncate" title={vote.voterDid}>
+                      {vote.voterDid}
                     </span>
                     <span className="text-xs text-base-content/60">
                       {new Date(vote.updatedAt ?? vote.createdAt).toLocaleString()}
