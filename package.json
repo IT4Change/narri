@@ -1,0 +1,22 @@
+{
+  "name": "opinion-graph-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "app",
+    "lib"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=app",
+    "build": "npm run build --workspace=lib && npm run build --workspace=app",
+    "build:lib": "npm run build --workspace=lib",
+    "build:app": "npm run build --workspace=app",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
