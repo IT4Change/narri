@@ -326,6 +326,7 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
         <AssumptionList
           assumptions={sortedAssumptions}
           getVoteSummary={narri.getVoteSummary}
+          getVotesForAssumption={narri.getVotesForAssumption}
           onVote={narri.setVote}
           tags={narri.tags}
           currentUserId={narri.currentUserDid}

@@ -1,9 +1,10 @@
-import { Assumption, Tag, VoteValue } from 'narri-ui';
+import { Assumption, Tag, Vote, VoteValue } from 'narri-ui';
 import { AssumptionCard } from './AssumptionCard';
 
 interface AssumptionListProps {
   assumptions: (Assumption | null)[];
   getVoteSummary: (assumptionId: string) => any;
+  getVotesForAssumption: (assumptionId: string) => Vote[];
   onVote: (assumptionId: string, value: VoteValue) => void;
   tags: Tag[];
   currentUserId?: string;
@@ -15,6 +16,7 @@ interface AssumptionListProps {
 export function AssumptionList({
   assumptions,
   getVoteSummary,
+  getVotesForAssumption,
   onVote,
   tags,
   currentUserId,
@@ -42,6 +44,7 @@ export function AssumptionList({
         <AssumptionCard
           key={assumption.id}
           assumption={assumption}
+          votes={getVotesForAssumption(assumption.id)}
           tags={assumption.tagIds.map((id) => tagMap[id]).filter((t): t is Tag => !!t)}
           voteSummary={getVoteSummary(assumption.id)}
           onVote={onVote}

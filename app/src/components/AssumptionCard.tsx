@@ -1,9 +1,10 @@
-import { Assumption, Tag, VoteValue, VoteSummary } from 'narri-ui';
+import { Assumption, Tag, Vote, VoteValue, VoteSummary } from 'narri-ui';
 import { VoteBar } from './VoteBar';
 
 interface AssumptionCardProps {
   assumption: Assumption;
   tags: Tag[];
+  votes: Vote[];
   voteSummary: VoteSummary;
   onVote: (assumptionId: string, value: VoteValue) => void;
   currentUserId?: string; // Currently unused but kept for future features
@@ -15,6 +16,7 @@ interface AssumptionCardProps {
 export function AssumptionCard({
   assumption,
   tags,
+  votes,
   voteSummary,
   onVote,
 }: AssumptionCardProps) {
@@ -103,6 +105,34 @@ export function AssumptionCard({
           <div className="text-sm text-base-content opacity-60">
             {voteSummary.total} {voteSummary.total === 1 ? 'vote' : 'votes'}
           </div>
+          {votes.length > 0 && (
+            <div className="mt-3 border-t border-base-200 pt-3">
+              <div className="text-sm font-semibold mb-2 text-base-content/70">Voting Log</div>
+              <div className="space-y-1">
+                {votes.map((vote) => (
+                  <div key={vote.id} className="flex items-center gap-2 text-sm">
+                    <span
+                      className={
+                        vote.value === 'green'
+                          ? 'text-success font-semibold'
+                          : vote.value === 'yellow'
+                            ? 'text-warning font-semibold'
+                            : 'text-error font-semibold'
+                      }
+                    >
+                      {vote.value === 'green' ? '🟢' : vote.value === 'yellow' ? '🟡' : '🔴'}
+                    </span>
+                    <span className="truncate max-w-[120px]" title={vote.voterDid}>
+                      {vote.voterDid.slice(0, 8)}...
+                    </span>
+                    <span className="text-xs text-base-content/60">
+                      {new Date(vote.updatedAt ?? vote.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

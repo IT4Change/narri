@@ -3,6 +3,7 @@ import { DocHandle, DocumentId } from '@automerge/automerge-repo';
 import {
   Assumption,
   OpinionGraphDoc,
+  Vote,
   VoteValue,
   computeVoteSummary,
   generateId,
@@ -238,6 +239,19 @@ export function useOpinionGraph(
   };
 
   /**
+   * Get all votes for an assumption, sorted by most recent update
+   */
+  const getVotesForAssumption = (assumptionId: string) => {
+    const assumption = doc.assumptions[assumptionId];
+    if (!assumption) return [];
+
+    return assumption.voteIds
+      .map((id) => doc.votes[id])
+      .filter((v): v is Vote => Boolean(v))
+      .sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt));
+  };
+
+  /**
    * Update user identity
    */
   const updateIdentity = (updates: Partial<Omit<typeof doc.identity, 'did'>>) => {
@@ -274,6 +288,7 @@ export function useOpinionGraph(
     updateIdentity,
     // Helpers
     getVoteSummary,
+    getVotesForAssumption,
   };
 }
 
