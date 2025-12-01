@@ -45,7 +45,29 @@ export function AssumptionCard({
         </div>
 
         {/* Vote Buttons */}
-        <div className="card-actions justify-end mt-4">
+        <div className="card-actions justify-between items-center mt-4 flex-wrap gap-2">
+          {voteSummary.userVote ? (
+            <div className="text-sm opacity-70">
+              Dein Vote:{' '}
+              <span
+                className={
+                  voteSummary.userVote === 'green'
+                    ? 'text-success font-semibold'
+                    : voteSummary.userVote === 'yellow'
+                      ? 'text-warning font-semibold'
+                      : 'text-error font-semibold'
+                }
+              >
+                {voteSummary.userVote === 'green'
+                  ? 'Zustimmung'
+                  : voteSummary.userVote === 'yellow'
+                    ? 'Neutral'
+                    : 'Ablehnung'}
+              </span>
+            </div>
+          ) : (
+            <div className="text-sm opacity-60">Noch kein Vote abgegeben</div>
+          )}
           <div className="btn-group">
             <button
               className={`tw:btn btn-sm ${
