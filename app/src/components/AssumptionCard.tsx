@@ -45,7 +45,7 @@ export function AssumptionCard({
         </div>
 
         {/* Vote Buttons */}
-        <div className="card-actions justify-between items-center mt-4 flex-wrap gap-2">
+        <div className="card-actions justify-center items-center mt-4 flex-wrap gap-3">
           <div className="btn-group">
             <button
               className={`tw:btn btn-sm ${
@@ -54,8 +54,14 @@ export function AssumptionCard({
               onClick={() => handleVote('green')}
               title="Agree"
             >
-              {voteSummary.userVote === 'green' ? '✔︎' : ' '}
-              <span className="text-lg">🟢</span>
+              <span className="relative inline-flex items-center justify-center w-7 h-7 text-lg">
+                <span>🟢</span>
+                {voteSummary.userVote === 'green' && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                    ✔︎
+                  </span>
+                )}
+              </span>
               <span className="ml-1">{voteSummary.green}</span>
             </button>
             <button
@@ -65,8 +71,14 @@ export function AssumptionCard({
               onClick={() => handleVote('yellow')}
               title="Neutral"
             >
-              {voteSummary.userVote === 'yellow' ? '✔︎' : ' '}
-              <span className="text-lg">🟡</span>
+              <span className="relative inline-flex items-center justify-center w-7 h-7 text-lg">
+                <span>🟡</span>
+                {voteSummary.userVote === 'yellow' && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                    ✔︎
+                  </span>
+                )}
+              </span>
               <span className="ml-1">{voteSummary.yellow}</span>
             </button>
             <button
@@ -76,8 +88,14 @@ export function AssumptionCard({
               onClick={() => handleVote('red')}
               title="Disagree"
             >
-              {voteSummary.userVote === 'red' ? '✔︎' : ' '}
-              <span className="text-lg">🔴</span>
+              <span className="relative inline-flex items-center justify-center w-7 h-7 text-lg">
+                <span>🔴</span>
+                {voteSummary.userVote === 'red' && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                    ✔︎
+                  </span>
+                )}
+              </span>
               <span className="ml-1">{voteSummary.red}</span>
             </button>
           </div>

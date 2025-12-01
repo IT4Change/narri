@@ -35,6 +35,7 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [sortBy, setSortBy] = useState<'votes' | 'agree' | 'recent'>('recent');
+  const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
   const handleShareClick = () => {
     const url = window.location.href;
@@ -138,7 +139,10 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
       {/* Navbar */}
       <div className="navbar bg-base-100 shadow-lg">
         <div className="flex-1">
-          <a className="btn btn-ghost text-xl">Narri</a>
+          <a className="btn btn-ghost text-xl flex items-center gap-2">
+            <img src={logoUrl} alt="Narri" className="h-8 w-8" />
+            <span>Narri</span>
+          </a>
         </div>
         <div className="flex-none gap-2">
           <button
