@@ -23,6 +23,14 @@ export interface UserIdentity {
 }
 
 /**
+ * Optional identity metadata by DID
+ */
+export interface IdentityProfile {
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+/**
  * Tag for categorizing assumptions
  */
 export interface Tag {
@@ -67,6 +75,7 @@ export interface Assumption {
 export interface OpinionGraphDoc {
   // User identity
   identity: UserIdentity;
+  identities: Record<string, IdentityProfile>;
 
   // Collections (normalized by ID)
   assumptions: Record<string, Assumption>;
@@ -131,6 +140,14 @@ export function computeVoteSummary(
 export function createEmptyDoc(identity: UserIdentity): OpinionGraphDoc {
   return {
     identity,
+    identities: identity.did
+      ? {
+          [identity.did]: {
+            displayName: identity.displayName,
+            avatarUrl: identity.avatarUrl,
+          },
+        }
+      : {},
     assumptions: {},
     votes: {},
     tags: {},

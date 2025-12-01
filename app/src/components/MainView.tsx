@@ -83,9 +83,18 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
   };
 
   useEffect(() => {
-    const name = narri?.doc.identity.displayName ?? '';
-    setNameInput(name);
-  }, [narri?.doc.identity.displayName]);
+    const stored = localStorage.getItem('narriIdentity');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setNameInput(parsed.displayName ?? '');
+        return;
+      } catch {
+        // ignore parse errors
+      }
+    }
+    setNameInput('');
+  }, []);
 
   const handleExportIdentity = () => {
     const savedIdentity = localStorage.getItem('narriIdentity');
