@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Assumption, Tag, Vote, VoteValue, VoteSummary } from 'narri-ui';
 import { VoteBar } from './VoteBar';
 
@@ -20,6 +21,7 @@ export function AssumptionCard({
   voteSummary,
   onVote,
 }: AssumptionCardProps) {
+  const [showLog, setShowLog] = useState(false);
   const handleVote = (value: VoteValue) => {
     onVote(assumption.id, value);
   };
@@ -102,11 +104,22 @@ export function AssumptionCard({
             </button>
           </div>
 
-          <div className="text-sm text-base-content opacity-60">
-            {voteSummary.total} {voteSummary.total === 1 ? 'vote' : 'votes'}
+          <div className="flex items-center gap-3 text-sm text-base-content opacity-60">
+            <span>
+              {voteSummary.total} {voteSummary.total === 1 ? 'vote' : 'votes'}
+            </span>
+            {votes.length > 0 && (
+              <button
+                type="button"
+                className="link link-hover text-xs"
+                onClick={() => setShowLog((v) => !v)}
+              >
+                {showLog ? 'Log verbergen' : 'Log anzeigen'}
+              </button>
+            )}
           </div>
-          {votes.length > 0 && (
-            <div className="mt-3 border-t border-base-200 pt-3">
+          {votes.length > 0 && showLog && (
+            <div className="mt-3 border-t border-base-200 pt-3 w-full">
               <div className="text-sm font-semibold mb-2 text-base-content/70">Voting Log</div>
               <div className="space-y-1">
                 {votes.map((vote) => (
