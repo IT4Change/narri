@@ -450,45 +450,345 @@ interface Vote {
 
 ---
 
-## Part 7: Open Questions
+## Part 7: Final Architecture Decisions
 
-1. **Signature Format**:
-   - Detached signatures (just the signature bytes)?
-   - JWS (JSON Web Signature, includes header/payload)?
-   - Recommendation: JWS for compatibility with UCAN
+After analyzing trade-offs, we've made the following decisions:
 
-2. **Validation Performance**:
+### Decision 1: IdentityProfile.publicKey ✅ YES
+
+**Decision**: Add `publicKey?: string` to `IdentityProfile`
+
+**Rationale**:
+- Performance: Avoid 1000+ DID-parsing operations (O(1) lookup vs parsing)
+- Future-proof: Enables migration to `did:web` without schema changes
+- Minimal cost: ~2 KB for 50 users (negligible)
+
+**Schema Change**:
+```typescript
+interface IdentityProfile {
+  displayName?: string;
+  avatarUrl?: string;
+  publicKey?: string;  // ✅ Added
+}
+```
+
+### Decision 2: Add Signature Fields Now ✅ YES
+
+**Decision**: Add `signature?: string` and `publicKey?: string` to all entities now (Phase 1), even if unused
+
+**Rationale**:
+- Avoid breaking changes in Phase 2
+- Clear API contract: "signatures are coming"
+- Enables gradual rollout (old clients ignore new fields)
+- TypeScript-only cost (no runtime overhead)
+
+**Schema Changes**:
+```typescript
+interface Vote {
+  // ... existing
+  signature?: string;
+  publicKey?: string;  // Optional cache for verification
+}
+
+interface EditEntry {
+  // ... existing
+  signature?: string;
+  publicKey?: string;
+}
+
+interface Assumption {
+  // ... existing
+  signature?: string;
+  publicKey?: string;
+}
+
+interface Tag {
+  // ... existing
+  signature?: string;
+  publicKey?: string;
+}
+```
+
+### Decision 3: JWS Signature Format
+
+**Decision**: Use JWS (JSON Web Signature) format, not raw Base64
+
+**Rationale**:
+- UCAN-compatible (UCAN uses JWS)
+- Standard (RFC 7515)
+- Self-describing (algorithm, key ID in header)
+- Debuggable (can inspect header/payload in jwt.io)
+- Cost: 250 bytes vs 88 bytes (+162 bytes per signature)
+- At 1000 votes: +162 KB (acceptable for benefits)
+
+**Format**:
+```typescript
+signature: "eyJhbGc...header.payload.signature"
+
+// Decoded header:
+{
+  "alg": "EdDSA",
+  "kid": "did:key:z6Mk...",
+  "typ": "JWT"
+}
+
+// Decoded payload:
+{
+  "iss": "did:key:z6Mk...",  // Issuer
+  "sub": "vote-1",           // Subject (entity ID)
+  "value": "green",          // Entity-specific data
+  "iat": 1733155000          // Issued at
+}
+```
+
+### Decision 4: Sign ALL Entities (including Tags) ✅ YES
+
+**Decision**: Sign Votes, Edits, Assumptions, AND Tags
+
+**Rationale**:
+- Consistency: All user actions are signed
+- Anti-spam: Prevents fake tag attribution
+- Future-proof: If tags become critical later, signatures already exist
+- Cost: Minimal (tags are infrequent compared to votes)
+
+### Decision 5: Public Key Lookup (No Redundancy) ❌ NO
+
+**Decision**: Do NOT cache `publicKey` in every entity. Use lookup in `doc.identities`
+
+**Rationale**:
+- Saves 44 KB per 1000 entities (significant)
+- Single source of truth (no inconsistency risk)
+- Hash lookup is O(1) and fast enough
+- Fallback to DID-parsing if identity missing
+
+**Verification Pattern**:
+```typescript
+function getPublicKey(did: string, doc: OpinionGraphDoc): string {
+  // Try lookup first (fast)
+  const pubKey = doc.identities[did]?.publicKey;
+  if (pubKey) return pubKey;
+
+  // Fallback: extract from DID (slower, but rare)
+  return extractPublicKeyFromDid(did);
+}
+```
+
+**Exception**: Keep `publicKey?: string` field in schema for future flexibility, but leave it `undefined` in Phase 1-2.
+
+### Decision 6: Migration Strategy - Hard Break
+
+**Decision**: Pre-Launch = Hard break (clear all fake-DIDs), Post-Launch = Freeze-on-Write
+
+**Rationale**:
+- **Now (pre-launch)**: No real users → clean slate is simplest
+- **After launch**: Use Freeze-on-Write (old data visible but read-only, new actions require real DIDs)
+
+**Implementation**:
+```typescript
+// Phase 1: Detect and clear fake DIDs
+function isFakeDid(did: string): boolean {
+  return did.includes('-') && !did.startsWith('did:key:z');
+}
+
+if (isFakeDid(currentUserDid)) {
+  // Hard break: clear and start fresh
+  localStorage.removeItem('narrativeIdentity');
+  localStorage.removeItem('narrativeDocId');
+  alert('Upgraded to secure DIDs. Please create a new identity.');
+  window.location.reload();
+}
+```
+
+---
+
+## Part 8: Final Schema Design
+
+Based on decisions above, here's the complete schema:
+
+```typescript
+/**
+ * User identity (DID-based)
+ * Uses real did:key with Ed25519 keypair
+ */
+export interface UserIdentity {
+  did: string;           // did:key:z6Mk... (real DID)
+  displayName?: string;
+  avatarUrl?: string;
+  publicKey?: string;    // Base64 Ed25519 public key (32 bytes)
+}
+
+/**
+ * Identity profile stored in doc.identities[did]
+ */
+export interface IdentityProfile {
+  displayName?: string;
+  avatarUrl?: string;
+  publicKey?: string;    // ✅ Added for fast verification
+}
+
+/**
+ * Single vote on an assumption by a user
+ */
+export interface Vote {
+  id: string;
+  assumptionId: string;
+  voterDid: string;
+  voterName?: string;
+  value: VoteValue;
+  createdAt: number;
+  updatedAt: number;
+
+  // ✅ Phase 2: Signatures (JWS format)
+  signature?: string;
+  publicKey?: string;    // Unused for now (use lookup instead)
+}
+
+/**
+ * Edit log entry for an assumption
+ */
+export interface EditEntry {
+  id: string;
+  assumptionId: string;
+  editorDid: string;
+  editorName?: string;
+  type: 'create' | 'edit';
+  previousSentence: string;
+  newSentence: string;
+  previousTags?: string[];
+  newTags?: string[];
+  createdAt: number;
+
+  // ✅ Phase 2: Signatures
+  signature?: string;
+  publicKey?: string;
+}
+
+/**
+ * Core Assumption entity
+ */
+export interface Assumption {
+  id: string;
+  sentence: string;
+  createdBy: string; // DID
+  creatorName?: string;
+  createdAt: number;
+  updatedAt: number;
+  tagIds: string[];
+  voteIds: string[];
+  editLogIds: string[];
+
+  // ✅ Phase 2: Signatures
+  signature?: string;
+  publicKey?: string;
+}
+
+/**
+ * Tag for categorizing assumptions
+ */
+export interface Tag {
+  id: string;
+  name: string;
+  color?: string;
+  createdBy: string; // DID
+  createdAt: number;
+
+  // ✅ Phase 2: Signatures
+  signature?: string;
+  publicKey?: string;
+}
+```
+
+---
+
+## Part 9: Open Implementation Questions
+
+1. **Validation Performance**:
    - Verify on every render?
    - Cache validation results?
-   - Recommendation: useMemo with doc hash as key
+   - Recommendation: `useMemo` with doc hash as key
 
-3. **Invalid Data Handling**:
+2. **Invalid Data Handling**:
    - Silently filter out?
    - Show warning banner?
    - Allow user to "trust anyway"?
    - Recommendation: Filter + warning (developer console)
 
-4. **Migration Path**:
-   - Force all users to new identity?
-   - Keep old fake-DIDs as "legacy" mode?
-   - Recommendation: One-time migration prompt on app load
-
-5. **Testing Strategy**:
+3. **Testing Strategy**:
    - Unit tests for signature verification
    - Integration tests for CRDT + signatures
    - E2E tests for multi-peer scenarios with malicious actors
 
 ---
 
-## Next Steps
+## Next Steps: Phase 1 Implementation Plan
 
-1. **Review & Discuss**: Get feedback on this concept
-2. **Decide on Phases**: Which phases to implement now?
-3. **Prototype**: Small spike with @noble/ed25519 + signature verification
-4. **Update Schema**: Add optional signature fields
-5. **Implement Phase 1**: Real DIDs without signatures
-6. **Implement Phase 2**: Optional signatures with validation
-7. **Security Audit**: Review implementation before enforcing signatures
+### ✅ Completed
+1. Architecture decisions finalized
+2. Schema design approved
+3. Trade-offs analyzed
+
+### 🚀 Phase 1: Real DIDs (No Signatures)
+
+**Goal**: Replace fake DIDs with cryptographic `did:key` based on Ed25519 keypairs
+
+**Tasks**:
+1. **Install Dependencies**
+   ```bash
+   npm install --workspace=lib @noble/ed25519 multiformats
+   ```
+
+2. **Update Schema** ([lib/src/schema/index.ts](lib/src/schema/index.ts))
+   - Add `publicKey?: string` to `IdentityProfile`
+   - Add `signature?: string` and `publicKey?: string` to Vote, EditEntry, Assumption, Tag
+   - Update comments to reflect real DIDs
+
+3. **Create DID Utilities** (new file: `lib/src/utils/did.ts`)
+   - `generateKeypair()`: Generate Ed25519 keypair
+   - `deriveDidFromPublicKey(publicKey)`: Convert public key → `did:key:z6Mk...`
+   - `extractPublicKeyFromDid(did)`: Reverse operation (for verification)
+   - `isFakeDid(did)`: Detect old fake DIDs
+
+4. **Update Identity Generation** ([app/src/NarrativeApp.tsx](app/src/NarrativeApp.tsx))
+   - Replace fake DID generation with real keypair-based DIDs
+   - Store keypair in localStorage (JSON format)
+   - Add migration: detect fake DIDs → hard reset (clear localStorage)
+
+5. **Update Document Creation** ([lib/src/hooks/useOpinionGraph.ts](lib/src/hooks/useOpinionGraph.ts))
+   - Store `publicKey` in `doc.identities[did]` when creating entities
+   - Ensure `publicKey` is synced from localStorage identity
+
+6. **Build & Test**
+   ```bash
+   npm run build:lib
+   npm run dev
+   ```
+   - Test: Create new identity → verify DID format (`did:key:z6Mk...`)
+   - Test: Create vote → verify stored in doc
+   - Test: Multi-peer sync → verify DIDs sync correctly
+
+7. **Manual Testing**
+   - Open app in 2 browsers
+   - Create document in Browser A
+   - Share URL to Browser B
+   - Verify both identities show correct DIDs
+   - Verify votes/assumptions sync with real DIDs
+
+**Success Criteria**:
+- ✅ All new identities use `did:key:z6Mk...` format
+- ✅ Public keys stored in `doc.identities[did].publicKey`
+- ✅ Old fake DIDs trigger localStorage reset
+- ✅ Multi-peer sync works with real DIDs
+- ✅ No signatures yet (fields are `undefined`)
+
+**Estimated Time**: 2-3 hours
+
+---
+
+### 🔮 Future Phases
+
+**Phase 2**: Add JWS signatures (optional, no enforcement)
+**Phase 3**: Enforce signature verification
+**Phase 4**: UCAN delegation support
 
 ---
 

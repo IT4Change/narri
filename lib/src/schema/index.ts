@@ -12,14 +12,13 @@ export type VoteValue = 'green' | 'yellow' | 'red';
 
 /**
  * User identity (DID-based)
- * For now, we use simple string IDs
- * TODO: Implement proper DID generation
+ * Uses real did:key with Ed25519 keypair (format: did:key:z6Mk...)
  */
 export interface UserIdentity {
-  did: string;
+  did: string;          // did:key:z6Mk... (derived from Ed25519 public key)
   displayName?: string;
   avatarUrl?: string;
-  publicKey?: string;
+  publicKey?: string;   // Base64-encoded Ed25519 public key (32 bytes)
 }
 
 /**
@@ -28,6 +27,7 @@ export interface UserIdentity {
 export interface IdentityProfile {
   displayName?: string;
   avatarUrl?: string;
+  publicKey?: string;   // Base64-encoded Ed25519 public key for signature verification
 }
 
 /**
@@ -39,6 +39,10 @@ export interface Tag {
   color?: string;
   createdBy: string; // DID
   createdAt: number;
+
+  // Phase 2: Cryptographic signatures (JWS format)
+  signature?: string;
+  publicKey?: string;
 }
 
 /**
@@ -52,6 +56,10 @@ export interface Vote {
   value: VoteValue;
   createdAt: number;
   updatedAt: number;
+
+  // Phase 2: Cryptographic signatures (JWS format)
+  signature?: string;
+  publicKey?: string;  // Unused (use lookup in doc.identities instead)
 }
 
 /**
@@ -68,6 +76,10 @@ export interface EditEntry {
   previousTags?: string[];
   newTags?: string[];
   createdAt: number;
+
+  // Phase 2: Cryptographic signatures (JWS format)
+  signature?: string;
+  publicKey?: string;
 }
 
 /**
@@ -84,6 +96,10 @@ export interface Assumption {
   tagIds: string[];
   voteIds: string[];
   editLogIds: string[];
+
+  // Phase 2: Cryptographic signatures (JWS format)
+  signature?: string;
+  publicKey?: string;
 }
 
 /**

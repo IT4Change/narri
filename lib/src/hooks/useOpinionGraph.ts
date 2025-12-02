@@ -28,6 +28,31 @@ export function useOpinionGraph(
   const assumptions = Object.values(doc.assumptions);
   const tags = Object.values(doc.tags);
 
+  /**
+   * Ensure current user's identity profile exists in doc.identities
+   * This stores the publicKey for signature verification (Phase 2)
+   */
+  const ensureIdentityProfile = (d: OpinionGraphDoc) => {
+    if (!d.identities) {
+      d.identities = {};
+    }
+
+    // If profile doesn't exist, create it from doc.identity
+    if (!d.identities[currentUserDid]) {
+      d.identities[currentUserDid] = {};
+    }
+
+    // Sync publicKey from doc.identity if available
+    if (d.identity.publicKey && !d.identities[currentUserDid].publicKey) {
+      d.identities[currentUserDid].publicKey = d.identity.publicKey;
+    }
+
+    // Sync displayName from doc.identity if not set
+    if (d.identity.displayName && !d.identities[currentUserDid].displayName) {
+      d.identities[currentUserDid].displayName = d.identity.displayName;
+    }
+  };
+
   const findOrCreateTag = (d: OpinionGraphDoc, name: string): string => {
     const normalized = name.trim().toLowerCase();
     if (!normalized) return '';
@@ -52,6 +77,9 @@ export function useOpinionGraph(
    */
   const createAssumption = (sentence: string, tagNames: string[] = []) => {
     docHandle.change((d) => {
+      // Ensure current user's publicKey is stored in identities
+      ensureIdentityProfile(d);
+
       const id = generateId();
       const tagIds = tagNames
         .map((tag) => findOrCreateTag(d, tag))
@@ -96,6 +124,8 @@ export function useOpinionGraph(
    */
   const updateAssumption = (assumptionId: string, newSentence: string, tagNames: string[] = []) => {
     docHandle.change((d) => {
+      ensureIdentityProfile(d);
+
       const assumption = d.assumptions[assumptionId];
       if (!assumption) return;
 
@@ -182,6 +212,8 @@ export function useOpinionGraph(
    */
   const setVote = (assumptionId: string, value: VoteValue) => {
     docHandle.change((d) => {
+      ensureIdentityProfile(d);
+
       const assumption = d.assumptions[assumptionId];
       if (!assumption) return;
 
@@ -250,6 +282,8 @@ export function useOpinionGraph(
   const createTag = (name: string, color?: string): string => {
     let tagId = '';
     docHandle.change((d) => {
+      ensureIdentityProfile(d);
+
       tagId = generateId();
       const tag: any = {
         id: tagId,
@@ -342,13 +376,10 @@ export function useOpinionGraph(
    */
   const updateIdentity = (updates: Partial<Omit<typeof doc.identity, 'did'>>) => {
     docHandle.change((d) => {
+      ensureIdentityProfile(d);
+
       if (updates.displayName !== undefined) {
-        if (!d.identities) d.identities = {};
-        let profile = d.identities[currentUserDid];
-        if (!profile) {
-          d.identities[currentUserDid] = {};
-          profile = d.identities[currentUserDid];
-        }
+        const profile = d.identities[currentUserDid];
         if (updates.displayName === '') {
           delete profile.displayName;
         } else {
@@ -366,6 +397,26 @@ export function useOpinionGraph(
               delete vote.voterName;
             } else {
               vote.voterName = updates.displayName;
+            }
+          }
+        });
+        // Propagate to current user's assumptions (creatorName)
+        Object.values(d.assumptions).forEach((assumption) => {
+          if (assumption.createdBy === currentUserDid) {
+            if (updates.displayName === '') {
+              delete assumption.creatorName;
+            } else {
+              assumption.creatorName = updates.displayName;
+            }
+          }
+        });
+        // Propagate to current user's edits (editorName)
+        Object.values(d.edits).forEach((edit) => {
+          if (edit.editorDid === currentUserDid) {
+            if (updates.displayName === '') {
+              delete edit.editorName;
+            } else {
+              edit.editorName = updates.displayName;
             }
           }
         });

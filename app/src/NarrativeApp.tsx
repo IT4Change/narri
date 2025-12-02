@@ -1,6 +1,11 @@
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { useEffect, useState } from 'react';
-import { createEmptyDoc, generateId, type UserIdentity } from 'narrative-ui';
+import {
+  createEmptyDoc,
+  type UserIdentity,
+  generateDidIdentity,
+  isFakeDid,
+} from 'narrative-ui';
 import { MainView } from './components/MainView';
 import { LoadingScreen } from './components/LoadingScreen';
 import { DocumentId } from '@automerge/automerge-repo';
@@ -40,16 +45,36 @@ export function NarrativeApp() {
 
     // Try to load existing document from URL, then localStorage
     const savedDocId = localStorage.getItem('narrativeDocId');
-    const savedIdentity = localStorage.getItem('narrativeIdentity');
+    const savedIdentityJson = localStorage.getItem('narrativeIdentity');
+
+    // Migration: Check for fake DIDs and reset
+    if (savedIdentityJson) {
+      const savedIdentity = JSON.parse(savedIdentityJson);
+      if (isFakeDid(savedIdentity.did)) {
+        console.warn('Detected fake DID. Upgrading to real DIDs. Clearing localStorage...');
+        localStorage.removeItem('narrativeIdentity');
+        localStorage.removeItem('narrativeDocId');
+        alert('Upgraded to secure DIDs. Your identity has been reset. Please create a new board.');
+        window.location.hash = '';
+        window.location.reload();
+        return;
+      }
+    }
 
     // Each browser needs its own identity
-    let identity: UserIdentity;
-    if (savedIdentity) {
-      identity = JSON.parse(savedIdentity);
+    let identity: UserIdentity & { privateKey?: string };
+    if (savedIdentityJson) {
+      identity = JSON.parse(savedIdentityJson);
     } else {
+      // Generate real DID with Ed25519 keypair
+      const didIdentity = await generateDidIdentity(
+        `User-${Math.random().toString(36).substring(7)}`
+      );
       identity = {
-        did: `did:key:${generateId()}`,
-        displayName: `User-${Math.random().toString(36).substring(7)}`,
+        did: didIdentity.did,
+        displayName: didIdentity.displayName,
+        publicKey: didIdentity.publicKey,
+        privateKey: didIdentity.privateKey, // Store for future signing
       };
       localStorage.setItem('narrativeIdentity', JSON.stringify(identity));
     }
@@ -87,14 +112,27 @@ export function NarrativeApp() {
     window.location.reload();
   };
 
-  const handleNewBoard = () => {
+  const handleNewBoard = async () => {
     const storedIdentity = localStorage.getItem('narrativeIdentity');
-    const identity: UserIdentity = storedIdentity
-      ? JSON.parse(storedIdentity)
-      : {
-          did: currentUserDid || `did:key:${generateId()}`,
-          displayName: `User-${Math.random().toString(36).substring(7)}`,
-        };
+    let identity: UserIdentity;
+
+    if (storedIdentity) {
+      identity = JSON.parse(storedIdentity);
+    } else {
+      // Generate new identity if none exists (shouldn't happen, but safe fallback)
+      const didIdentity = await generateDidIdentity(
+        `User-${Math.random().toString(36).substring(7)}`
+      );
+      identity = {
+        did: didIdentity.did,
+        displayName: didIdentity.displayName,
+        publicKey: didIdentity.publicKey,
+      };
+      localStorage.setItem('narrativeIdentity', JSON.stringify({
+        ...identity,
+        privateKey: didIdentity.privateKey,
+      }));
+    }
 
     const handle = repo.create(createEmptyDoc(identity));
     const docId = handle.documentId;

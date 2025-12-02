@@ -17,10 +17,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "react": "^18.3.0",
     "@automerge/automerge": "^2.2.8",
     "@automerge/automerge-repo": "^1.2.1",
-    "@automerge/automerge-repo-react-hooks": "^1.2.1"
+    "@automerge/automerge-repo-react-hooks": "^1.2.1",
+    "multiformats": "^13.4.1",
+    "react": "^18.3.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
