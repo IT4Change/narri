@@ -18,6 +18,9 @@ export function NarrativeApp() {
   const repo = useRepo();
   const [documentId, setDocumentId] = useState<DocumentId | null>(null);
   const [currentUserDid, setCurrentUserDid] = useState<string | null>(null);
+  const [privateKey, setPrivateKey] = useState<string | undefined>(undefined);
+  const [publicKey, setPublicKey] = useState<string | undefined>(undefined);
+  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
@@ -79,6 +82,9 @@ export function NarrativeApp() {
       localStorage.setItem('narrativeIdentity', JSON.stringify(identity));
     }
     setCurrentUserDid(identity.did);
+    setPrivateKey(identity.privateKey); // Set private key for signing
+    setPublicKey(identity.publicKey); // Set public key for identity verification
+    setDisplayName(identity.displayName); // Set display name for identity
 
     const docIdToUse = urlDocId || savedDocId;
 
@@ -154,6 +160,9 @@ export function NarrativeApp() {
     <MainView
       documentId={documentId}
       currentUserDid={currentUserDid}
+      privateKey={privateKey}
+      publicKey={publicKey}
+      displayName={displayName}
       onResetId={handleResetId}
       onNewBoard={handleNewBoard}
     />

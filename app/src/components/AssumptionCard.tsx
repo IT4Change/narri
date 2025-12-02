@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Assumption, Tag, Vote, VoteValue, VoteSummary, EditEntry } from 'narrative-ui';
+import { useMemo, useState, useEffect } from 'react';
+import { Assumption, Tag, Vote, VoteValue, VoteSummary, EditEntry, OpinionGraphDoc, verifyEntitySignature } from 'narrative-ui';
 import { VoteBar } from './VoteBar';
 import { CreateAssumptionModal } from './CreateAssumptionModal';
 
@@ -14,6 +14,44 @@ interface AssumptionCardProps {
   onEdit: (assumptionId: string, newSentence: string, tags: string[]) => void;
   onTagClick?: (tagId: string) => void;
   currentUserId?: string; // Currently unused but kept for future features
+  doc?: OpinionGraphDoc; // For signature verification
+}
+
+/**
+ * Component to verify and display signature status
+ */
+function SignatureIndicator({ entity, doc }: { entity: any; doc?: OpinionGraphDoc }) {
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!entity.signature || !doc) {
+      setIsValid(null);
+      return;
+    }
+
+    // Get public key from identities map
+    const publicKey = doc.identities?.[entity.voterDid || entity.editorDid || entity.createdBy]?.publicKey;
+    if (!publicKey) {
+      setIsValid(null);
+      return;
+    }
+
+    // Verify signature asynchronously
+    verifyEntitySignature(entity, publicKey)
+      .then(result => setIsValid(result.valid))
+      .catch(() => setIsValid(false));
+  }, [entity, doc]);
+
+  if (isValid === null || !entity.signature) return null;
+
+  return (
+    <span
+      className={`text-xs ml-2 cursor-pointer ${isValid ? 'text-success' : 'text-error'}`}
+      title={isValid ? 'Signatur verifiziert ✓' : 'Signatur ungültig ✗'}
+    >
+      {isValid ? '✓' : '✗'}
+    </span>
+  );
 }
 
 /**
@@ -29,6 +67,7 @@ export function AssumptionCard({
   onVote,
   onEdit,
   onTagClick,
+  doc,
 }: AssumptionCardProps) {
   const [showLog, setShowLog] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -143,7 +182,7 @@ export function AssumptionCard({
           <div className="btn-group">
             <button
               className={`tw:btn btn-sm ${
-                voteSummary.userVote === 'green' ? 'tw:btn-success' : 'tw:btn-outline btn-success'
+                voteSummary.userVote === 'green' ? 'tw:btn-success' : 'tw:btn-outline tw:btn-success'
               }`}
               onClick={() => handleVote('green')}
               title="Agree"
@@ -151,16 +190,16 @@ export function AssumptionCard({
               <span className="relative inline-flex items-center justify-center w-7 h-7 text-lg">
                 <span>🟢</span>
                 {voteSummary.userVote === 'green' && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-black">
                     ✔︎
                   </span>
                 )}
               </span>
-              <span className="ml-1">{voteSummary.green}</span>
+              <span className="ml-1 text-current">{voteSummary.green}</span>
             </button>
             <button
               className={`tw:btn btn-sm ${
-                voteSummary.userVote === 'yellow' ? 'tw:btn-warning' : 'tw:btn-outline btn-warning'
+                voteSummary.userVote === 'yellow' ? 'tw:btn-warning' : 'tw:btn-outline tw:btn-warning'
               }`}
               onClick={() => handleVote('yellow')}
               title="Neutral"
@@ -168,7 +207,7 @@ export function AssumptionCard({
               <span className="relative inline-flex items-center justify-center w-7 h-7 text-lg">
                 <span>🟡</span>
                 {voteSummary.userVote === 'yellow' && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-black">
                     ✔︎
                   </span>
                 )}
@@ -177,7 +216,7 @@ export function AssumptionCard({
             </button>
             <button
               className={`tw:btn btn-sm ${
-                voteSummary.userVote === 'red' ? 'tw:btn-error' : 'tw:btn-outline btn-error'
+                voteSummary.userVote === 'red' ? 'tw:btn-error' : 'tw:btn-outline tw:btn-error'
               }`}
               onClick={() => handleVote('red')}
               title="Disagree"
@@ -185,7 +224,7 @@ export function AssumptionCard({
               <span className="relative inline-flex items-center justify-center w-7 h-7 text-lg">
                 <span>🔴</span>
                 {voteSummary.userVote === 'red' && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-black">
                     ✔︎
                   </span>
                 )}
@@ -249,9 +288,12 @@ export function AssumptionCard({
                               </span>
                             </div>
                           </div>
-                          <span className="text-xs text-base-content/60" title={exactTime}>
-                            {relativeTime}
-                          </span>
+                          <div className="flex items-center">
+                            <span className="text-xs text-base-content/60" title={exactTime}>
+                              {relativeTime}
+                            </span>
+                            <SignatureIndicator entity={vote} doc={doc} />
+                          </div>
                         </div>
                       </div>
                     );
@@ -276,9 +318,12 @@ export function AssumptionCard({
                             </span>
                           </div>
                         </div>
-                        <span className="text-xs text-base-content/60" title={exactTime}>
-                          {relativeTime}
-                        </span>
+                        <div className="flex items-center">
+                          <span className="text-xs text-base-content/60" title={exactTime}>
+                            {relativeTime}
+                          </span>
+                          <SignatureIndicator entity={edit} doc={doc} />
+                        </div>
                       </div>
                       <div className="text-xs text-base-content/70 space-y-1">
                         {edit.type === 'edit' && edit.previousSentence && edit.previousSentence !== edit.newSentence && (

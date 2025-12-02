@@ -4,7 +4,7 @@ import { Tag } from 'narrative-ui';
 interface CreateAssumptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (sentence: string, tags: string[]) => void;
+  onSubmit: (sentence: string, tags: string[]) => Promise<void> | void;
   initialSentence?: string;
   initialTags?: string[];
   submitLabel?: string;
@@ -39,7 +39,7 @@ export function CreateAssumptionModal({
     }
   }, [isOpen, initialSentence, initialTagsString]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!sentence.trim()) return;
@@ -51,7 +51,7 @@ export function CreateAssumptionModal({
 
     setIsSubmitting(true);
     try {
-      onSubmit(sentence.trim(), parsedTags);
+      await onSubmit(sentence.trim(), parsedTags);
       setSentence(initialSentence);
       setTagsInput(initialTags.join(', '));
       onClose();

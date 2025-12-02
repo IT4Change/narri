@@ -30,3 +30,12 @@ export {
   type Keypair,
   type DidIdentity,
 } from './utils/did';
+
+// Signature utilities exports
+export {
+  signJws,
+  verifyJws,
+  extractJwsPayload,
+  signEntity,
+  verifyEntitySignature,
+} from './utils/signature';

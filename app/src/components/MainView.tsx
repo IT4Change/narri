@@ -11,6 +11,9 @@ import { exposeDocToConsole } from '../debug';
 interface MainViewProps {
   documentId: DocumentId;
   currentUserDid: string;
+  privateKey?: string;
+  publicKey?: string;
+  displayName?: string;
   onResetId: () => void;
   onNewBoard: () => void;
 }
@@ -30,10 +33,10 @@ function hashString(str: string): string {
  * Main application view with AppShell layout
  * Shows list of assumptions and allows creating new ones
  */
-export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: MainViewProps) {
+export function MainView({ documentId, currentUserDid, privateKey, publicKey, displayName, onResetId, onNewBoard }: MainViewProps) {
   const repo = useRepo();
   const docHandle = repo.find<OpinionGraphDoc>(documentId);
-  const narrative = useOpinionGraph(documentId, docHandle, currentUserDid);
+  const narrative = useOpinionGraph(documentId, docHandle, currentUserDid, privateKey, publicKey, displayName);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [sortBy, setSortBy] = useState<'votes' | 'agree' | 'recent' | 'created'>('created');
@@ -170,14 +173,14 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
     setShowIdentityModal(false);
   };
 
-  const handleImportAssumptions = () => {
+  const handleImportAssumptions = async () => {
     if (!narrative) return;
     setImportError('');
     try {
       const parsed = JSON.parse(importText || '[]');
       if (!Array.isArray(parsed)) throw new Error('JSON Array erwartet');
 
-      parsed.forEach((item) => {
+      for (const item of parsed) {
         const sentence = typeof item === 'string' ? item : item?.sentence;
         const tags =
           item && Array.isArray(item.tags)
@@ -185,9 +188,9 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
             : [];
 
         if (sentence && typeof sentence === 'string') {
-          narrative.createAssumption(sentence, tags);
+          await narrative.createAssumption(sentence, tags);
         }
-      });
+      }
 
       setShowImportModal(false);
       setImportText('');
@@ -242,7 +245,7 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
             Share
           </button>
           <button
-            className="btn btn-outline btn-sm"
+            className="btn btn-ghost"
             onClick={onNewBoard}
           >
             <svg
@@ -279,7 +282,7 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto p-10 pb-24 max-w-6xl flex-1 overflow-auto w-full">
+      <div className="container mx-auto p-10 pb-24 max-w-6xl flex-1 w-full">
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap gap-2">
@@ -328,6 +331,7 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
           tags={narrative.tags}
           onTagClick={(tagId) => setActiveTagFilter((prev) => (prev === tagId ? null : tagId))}
           currentUserId={narrative.currentUserDid}
+          doc={narrative.doc}
         />
       </div>
 

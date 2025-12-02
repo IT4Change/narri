@@ -107,9 +107,10 @@ export interface Assumption {
  * This is the top-level CRDT document
  */
 export interface OpinionGraphDoc {
-  // User identity
-  identity: UserIdentity;
+  // User identity (DEPRECATED: use identities map instead)
+  identity?: UserIdentity;
   identities: Record<string, IdentityProfile>;
+  createdBy?: string; // DID of board creator (optional for display purposes)
 
   // Collections (normalized by ID)
   assumptions: Record<string, Assumption>;
@@ -178,14 +179,14 @@ export function createEmptyDoc(identity: UserIdentity): OpinionGraphDoc {
     const profile: IdentityProfile = {};
     if (identity.displayName !== undefined) profile.displayName = identity.displayName;
     if (identity.avatarUrl !== undefined) profile.avatarUrl = identity.avatarUrl;
-    if (Object.keys(profile).length > 0) {
-      identities[identity.did] = profile;
-    }
+    if (identity.publicKey !== undefined) profile.publicKey = identity.publicKey;
+    identities[identity.did] = profile;
   }
 
   return {
-    identity,
+    identity, // Keep for backward compatibility with old documents
     identities,
+    createdBy: identity.did, // Track board creator
     assumptions: {},
     votes: {},
     tags: {},

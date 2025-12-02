@@ -1,4 +1,4 @@
-import { Assumption, Tag, Vote, VoteValue, EditEntry } from 'narrative-ui';
+import { Assumption, Tag, Vote, VoteValue, EditEntry, OpinionGraphDoc } from 'narrative-ui';
 import { AssumptionCard } from './AssumptionCard';
 
 interface AssumptionListProps {
@@ -11,6 +11,7 @@ interface AssumptionListProps {
   tags: Tag[];
   onTagClick?: (tagId: string) => void;
   currentUserId?: string;
+  doc?: OpinionGraphDoc;
 }
 
 /**
@@ -26,6 +27,7 @@ export function AssumptionList({
   tags,
   onTagClick,
   currentUserId,
+  doc,
 }: AssumptionListProps) {
   const validAssumptions = assumptions.filter((a): a is Assumption => a !== null);
   const tagMap = tags.reduce<Record<string, Tag>>((acc, tag) => {
@@ -59,6 +61,7 @@ export function AssumptionList({
           onEdit={onEdit}
           onTagClick={onTagClick}
           currentUserId={currentUserId}
+          doc={doc}
         />
       ))}
     </div>

@@ -30,10 +30,23 @@ export function printDocStructure(doc: OpinionGraphDoc | null) {
 
   console.group('📊 Narrative Document Structure');
 
-  console.group('👤 Current Identity');
-  console.log('DID:', doc.identity.did);
-  console.log('Name:', doc.identity.displayName);
-  console.groupEnd();
+  if (doc.createdBy) {
+    console.group('📋 Board Info');
+    console.log('Created by:', doc.createdBy);
+    const creatorProfile = doc.identities[doc.createdBy];
+    if (creatorProfile?.displayName) {
+      console.log('Creator name:', creatorProfile.displayName);
+    }
+    console.groupEnd();
+  }
+
+  // Show legacy identity if exists (for backward compatibility)
+  if (doc.identity) {
+    console.group('👤 Legacy Identity (deprecated)');
+    console.log('DID:', doc.identity.did);
+    console.log('Name:', doc.identity.displayName);
+    console.groupEnd();
+  }
 
   console.group('👥 All Identities');
   console.table(doc.identities);

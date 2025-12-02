@@ -8,15 +8,23 @@ import {
   computeVoteSummary,
   generateId,
 } from '../schema';
+import { signEntity } from '../utils/signature';
 
 /**
  * Main hook for accessing and mutating Narrative data
  * Uses Automerge CRDT for automatic conflict resolution
+ *
+ * @param privateKey - Optional Base64-encoded private key for signing entities (Phase 2)
+ * @param publicKey - Optional Base64-encoded public key for identity verification (Phase 2)
+ * @param displayName - Optional display name for the current user
  */
 export function useOpinionGraph(
   docId: DocumentId,
   docHandle: DocHandle<OpinionGraphDoc>,
-  currentUserDid: string
+  currentUserDid: string,
+  privateKey?: string,
+  publicKey?: string,
+  displayName?: string
 ) {
   const [doc] = useDocument<OpinionGraphDoc>(docId);
 
@@ -37,19 +45,19 @@ export function useOpinionGraph(
       d.identities = {};
     }
 
-    // If profile doesn't exist, create it from doc.identity
+    // If profile doesn't exist, create it
     if (!d.identities[currentUserDid]) {
       d.identities[currentUserDid] = {};
     }
 
-    // Sync publicKey from doc.identity if available
-    if (d.identity.publicKey && !d.identities[currentUserDid].publicKey) {
-      d.identities[currentUserDid].publicKey = d.identity.publicKey;
+    // Store CURRENT USER's public key (not doc.identity.publicKey!)
+    if (publicKey && !d.identities[currentUserDid].publicKey) {
+      d.identities[currentUserDid].publicKey = publicKey;
     }
 
-    // Sync displayName from doc.identity if not set
-    if (d.identity.displayName && !d.identities[currentUserDid].displayName) {
-      d.identities[currentUserDid].displayName = d.identity.displayName;
+    // Store CURRENT USER's display name
+    if (displayName && !d.identities[currentUserDid].displayName) {
+      d.identities[currentUserDid].displayName = displayName;
     }
   };
 
@@ -75,46 +83,64 @@ export function useOpinionGraph(
   /**
    * Create a new assumption
    */
-  const createAssumption = (sentence: string, tagNames: string[] = []) => {
+  const createAssumption = async (sentence: string, tagNames: string[] = []) => {
+    // Step 1: Pre-create tags in CRDT to get their IDs
+    const tagIds: string[] = [];
     docHandle.change((d) => {
-      // Ensure current user's publicKey is stored in identities
       ensureIdentityProfile(d);
+      tagNames.forEach((tagName) => {
+        const tagId = findOrCreateTag(d, tagName);
+        if (tagId) tagIds.push(tagId);
+      });
+    });
 
-      const id = generateId();
-      const tagIds = tagNames
-        .map((tag) => findOrCreateTag(d, tag))
-        .filter((tagId): tagId is string => !!tagId);
+    // Step 2: Generate IDs and data for signing (with known tagIds)
+    const id = generateId();
+    const now = Date.now();
+    const editId = generateId();
+    const creatorName = displayName || doc.identities?.[currentUserDid]?.displayName || 'Anonymous';
 
-      const assumption: any = {
-        id,
-        sentence,
-        createdBy: currentUserDid,
-        creatorName: d.identities?.[currentUserDid]?.displayName || d.identity.displayName,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        tagIds,
-        voteIds: [],
-        editLogIds: [],
-      };
+    // Create assumption object with complete, final data
+    const assumptionData: any = {
+      id,
+      sentence,
+      createdBy: currentUserDid,
+      creatorName,
+      createdAt: now,
+      updatedAt: now,
+      tagIds,  // Known tag IDs from Step 1
+      voteIds: [],
+      editLogIds: [editId],
+    };
 
+    const editData: any = {
+      id: editId,
+      assumptionId: id,
+      editorDid: currentUserDid,
+      editorName: creatorName,
+      type: 'create',
+      previousSentence: '',
+      newSentence: sentence,
+      previousTags: [],
+      newTags: tagNames,
+      createdAt: now,
+    };
+
+    // Step 3: Sign entities with complete data
+    if (privateKey) {
+      try {
+        assumptionData.signature = await signEntity(assumptionData, privateKey);
+        editData.signature = await signEntity(editData, privateKey);
+      } catch (error) {
+        console.error('Failed to sign assumption:', error);
+      }
+    }
+
+    // Step 4: Store signed entities WITHOUT modification
+    docHandle.change((d) => {
       if (!d.edits) d.edits = {};
-      const editId = generateId();
-      d.edits[editId] = {
-        id: editId,
-        assumptionId: id,
-        editorDid: currentUserDid,
-        editorName: assumption.creatorName,
-        type: 'create',
-        previousSentence: '',
-        newSentence: sentence,
-        previousTags: [],
-        newTags: tagNames,
-        createdAt: Date.now(),
-      };
-      assumption.editLogIds.push(editId);
-      // Note: Sorting is done on read (getEditsForAssumption) to avoid CRDT conflicts
-
-      d.assumptions[id] = assumption;
+      d.edits[editId] = editData;
+      d.assumptions[id] = assumptionData;
       d.lastModified = Date.now();
     });
   };
@@ -173,7 +199,7 @@ export function useOpinionGraph(
       };
 
       const editorName =
-        d.identities?.[currentUserDid]?.displayName || d.identity.displayName;
+        d.identities?.[currentUserDid]?.displayName || 'Anonymous';
       if (editorName) {
         entry.editorName = editorName;
       }
@@ -210,47 +236,88 @@ export function useOpinionGraph(
    * Set or update a vote on an assumption
    * Enforces one vote per user per assumption
    */
-  const setVote = (assumptionId: string, value: VoteValue) => {
-    docHandle.change((d) => {
-      ensureIdentityProfile(d);
+  const setVote = async (assumptionId: string, value: VoteValue) => {
+    const now = Date.now();
+    const voterName = displayName || doc.identities?.[currentUserDid]?.displayName || 'Anonymous';
 
-      const assumption = d.assumptions[assumptionId];
-      if (!assumption) return;
+    // Find existing vote by current user
+    const assumption = doc.assumptions[assumptionId];
+    if (!assumption) return;
 
-      const voterName =
-        d.identities?.[currentUserDid]?.displayName || d.identity.displayName;
+    const existingVoteId = assumption.voteIds.find((voteId) => {
+      const vote = doc.votes[voteId];
+      return vote && vote.voterDid === currentUserDid;
+    });
 
-      // Find existing vote by current user
-      const existingVoteId = assumption.voteIds.find((voteId) => {
-        const vote = d.votes[voteId];
-        return vote && vote.voterDid === currentUserDid;
-      });
+    if (existingVoteId) {
+      // Update existing vote
+      const existingVote = doc.votes[existingVoteId];
+      if (!existingVote) return;
 
-      if (existingVoteId) {
-        // Update existing vote
+      const updatedVoteData: any = {
+        id: existingVoteId,
+        assumptionId,
+        voterDid: currentUserDid,
+        voterName,
+        value,
+        createdAt: existingVote.createdAt,
+        updatedAt: now,
+      };
+
+      // Sign updated vote
+      if (privateKey) {
+        try {
+          updatedVoteData.signature = await signEntity(updatedVoteData, privateKey);
+        } catch (error) {
+          console.error('Failed to sign updated vote:', error);
+        }
+      }
+
+      docHandle.change((d) => {
+        ensureIdentityProfile(d);
         const vote = d.votes[existingVoteId];
         if (vote) {
           vote.value = value;
           if (voterName) vote.voterName = voterName;
-          vote.updatedAt = Date.now();
+          vote.updatedAt = now;
+          if (updatedVoteData.signature) {
+            vote.signature = updatedVoteData.signature;
+          }
         }
-      } else {
-        // Create new vote
-        const voteId = generateId();
-        d.votes[voteId] = {
-          id: voteId,
-          assumptionId,
-          voterDid: currentUserDid,
-          voterName,
-          value,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        assumption.voteIds.push(voteId);
+        d.lastModified = Date.now();
+      });
+    } else {
+      // Create new vote
+      const voteId = generateId();
+      const voteData: any = {
+        id: voteId,
+        assumptionId,
+        voterDid: currentUserDid,
+        voterName,
+        value,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      // Sign new vote
+      if (privateKey) {
+        try {
+          voteData.signature = await signEntity(voteData, privateKey);
+        } catch (error) {
+          console.error('Failed to sign vote:', error);
+        }
       }
 
-      d.lastModified = Date.now();
-    });
+      docHandle.change((d) => {
+        ensureIdentityProfile(d);
+        const assumption = d.assumptions[assumptionId];
+        if (!assumption) return;
+
+        d.votes[voteId] = voteData;
+        assumption.voteIds.push(voteId);
+        d.lastModified = Date.now();
+      });
+    }
   };
 
   /**
@@ -374,7 +441,7 @@ export function useOpinionGraph(
   /**
    * Update user identity
    */
-  const updateIdentity = (updates: Partial<Omit<typeof doc.identity, 'did'>>) => {
+  const updateIdentity = (updates: Partial<{ displayName?: string; avatarUrl?: string }>) => {
     docHandle.change((d) => {
       ensureIdentityProfile(d);
 
@@ -422,10 +489,11 @@ export function useOpinionGraph(
         });
       }
       if (updates.avatarUrl !== undefined) {
+        const profile = d.identities[currentUserDid];
         if (updates.avatarUrl === '') {
-          delete d.identity.avatarUrl;
+          delete profile.avatarUrl;
         } else {
-          d.identity.avatarUrl = updates.avatarUrl;
+          profile.avatarUrl = updates.avatarUrl;
         }
       }
       d.lastModified = Date.now();
