@@ -284,7 +284,7 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap gap-2">
               {activeTagFilter ? (
-                <div className="badge badge-primary gap-1 p-4">
+                <div className="badge badge-primary gap-1 p-4 pr-1">
                   <span>{narrative.tags.find((t) => t.id === activeTagFilter)?.name ?? 'Tag'}</span>
                   <button
                     className="btn btn-ghost btn-xs"
