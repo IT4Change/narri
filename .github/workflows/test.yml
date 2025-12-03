@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -29,9 +30,8 @@ jobs:
       - name: Run library tests
         run: npm run test --workspace=lib
 
-      - name: Run app tests (when dependencies are ready)
-        run: npm run test --workspace=app || echo "App tests skipped - dependencies needed"
-        continue-on-error: true
+      - name: Run app unit tests
+        run: npm run test --workspace=app
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -41,3 +41,40 @@ jobs:
           flags: unittests
           name: codecov-narrative
           fail_ci_if_error: false
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: ./app
+
+      - name: Run E2E tests
+        run: npx playwright test
+        working-directory: ./app
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: app/playwright-report/
+          retention-days: 30

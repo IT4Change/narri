@@ -54,16 +54,18 @@ test.describe('URL Sharing', () => {
     await createAssumption(page, 'First document assumption');
     const firstDocUrl = page.url();
 
-    // Create second document
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    // Create second document by clicking "New Board" button
+    // Click the hamburger menu (Board Menu FAB at bottom-left)
+    const hamburgerButton = page.locator('.dropdown-top .btn[role="button"]');
+    await expect(hamburgerButton).toBeVisible({ timeout: 5000 });
+    await hamburgerButton.click();
+    await page.waitForTimeout(500);
 
-    const newButton = page.getByRole('button', { name: /^new$/i });
-    if (await newButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await newButton.click();
-      await page.waitForURL(/.*#doc=.*/);
-      await page.waitForTimeout(1000);
-    }
+    // Click "New Board" in the dropdown menu
+    const newBoardButton = page.getByText('New Board', { exact: true });
+    await expect(newBoardButton).toBeVisible({ timeout: 5000 });
+    await newBoardButton.click();
+    await page.waitForTimeout(2000); // Wait for navigation and document creation
 
     await createAssumption(page, 'Second document assumption');
     const secondDocUrl = page.url();

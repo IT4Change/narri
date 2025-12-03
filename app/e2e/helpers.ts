@@ -55,12 +55,19 @@ export async function ensureOnBoard(page: Page) {
 
   const url = page.url();
   if (!url.includes('#doc=')) {
-    // Click "New" button to create a new board
-    const newButton = page.getByRole('button', { name: /^new$/i });
-    if (await newButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await newButton.click();
-      await page.waitForURL(/.*#doc=.*/);
-      await page.waitForTimeout(1000);
+    // Click hamburger menu button (Board Menu FAB at bottom-left)
+    const hamburgerButton = page.locator('.dropdown-top .btn[role="button"]');
+    if (await hamburgerButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await hamburgerButton.click();
+      await page.waitForTimeout(500);
+
+      // Click "New Board" in the dropdown menu
+      const newBoardButton = page.getByText('New Board', { exact: true });
+      if (await newBoardButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await newBoardButton.click();
+        await page.waitForURL(/.*#doc=.*/);
+        await page.waitForTimeout(1000);
+      }
     }
   }
 }
