@@ -1,7 +1,6 @@
 # Narrative
 
 [![Tests](https://github.com/it4change/narrative/actions/workflows/test.yml/badge.svg)](https://github.com/it4change/narrative/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/it4change/narrative/branch/main/graph/badge.svg)](https://codecov.io/gh/it4change/narrative)
 
 ## Table of Contents
 
