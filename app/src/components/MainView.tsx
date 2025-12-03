@@ -45,6 +45,8 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
@@ -53,6 +55,44 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       exposeDocToConsole(narrative.doc);
     }
   }, [narrative?.doc]);
+
+  const toggleUserVisibility = (did: string) => {
+    setHiddenUserDids((prev) => {
+      const next = new Set(prev);
+      if (next.has(did)) {
+        next.delete(did);
+      } else {
+        next.add(did);
+      }
+      return next;
+    });
+  };
+
+  // Wrapper functions that filter by hidden users
+  const getFilteredVotesForAssumption = (assumptionId: string) => {
+    const votes = narrative?.getVotesForAssumption(assumptionId) || [];
+    return votes.filter((vote) => !hiddenUserDids.has(vote.voterDid));
+  };
+
+  const getFilteredEditsForAssumption = (assumptionId: string) => {
+    const edits = narrative?.getEditsForAssumption(assumptionId) || [];
+    return edits.filter((edit) => !hiddenUserDids.has(edit.editorDid));
+  };
+
+  const getFilteredVoteSummary = (assumptionId: string) => {
+    // Recalculate summary with filtered votes
+    const filteredVotes = getFilteredVotesForAssumption(assumptionId);
+    const green = filteredVotes.filter((v) => v.value === 'green').length;
+    const yellow = filteredVotes.filter((v) => v.value === 'yellow').length;
+    const red = filteredVotes.filter((v) => v.value === 'red').length;
+
+    return {
+      green,
+      yellow,
+      red,
+      total: green + yellow + red,
+    };
+  };
 
   const sortedAssumptions = useMemo(() => {
     if (!narrative) return [];
@@ -63,17 +103,23 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
         narrative.doc.assumptions[assumptionId]?.voteIds
           .map((id) => votes[id])
           .filter((v): v is NonNullable<typeof votes[string]> => Boolean(v))
+          .filter((v) => !hiddenUserDids.has(v.voterDid)) // Filter hidden users
           .reduce((latest, vote) => Math.max(latest, vote.updatedAt ?? vote.createdAt), 0) || 0
       );
     };
 
+    // Filter out assumptions from hidden users
+    const withoutHidden = narrative.assumptions.filter(
+      (a) => !hiddenUserDids.has(a.createdBy)
+    );
+
     const filtered = activeTagFilter
-      ? narrative.assumptions.filter((a) => a.tagIds.includes(activeTagFilter))
-      : narrative.assumptions;
+      ? withoutHidden.filter((a) => a.tagIds.includes(activeTagFilter))
+      : withoutHidden;
 
     return [...filtered].sort((a, b) => {
-      const summaryA = narrative.getVoteSummary(a.id);
-      const summaryB = narrative.getVoteSummary(b.id);
+      const summaryA = getFilteredVoteSummary(a.id);
+      const summaryB = getFilteredVoteSummary(b.id);
 
       const totalA = summaryA.total;
       const totalB = summaryB.total;
@@ -94,7 +140,7 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       // recent
       return lastVoteB - lastVoteA || totalB - totalA || agreeRateB - agreeRateA || b.createdAt - a.createdAt;
     });
-  }, [narrative, sortBy, narrative?.doc?.lastModified, activeTagFilter]);
+  }, [narrative, sortBy, narrative?.doc?.lastModified, activeTagFilter, hiddenUserDids]);
 
   const handleShareClick = () => {
     const url = window.location.href;
@@ -264,20 +310,77 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
             </svg>
             New Board
           </button>
-          <button
-            className="btn btn-ghost btn-circle avatar"
-            onClick={() => setShowIdentityModal(true)}
-            title="Identity"
-          >
-            <div className="w-12 rounded-full overflow-hidden">
-              <Avatar
-                size={48}
-                name={hashString(currentUserDid)}
-                variant="marble"
-                colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
-              />
+          <div className="dropdown dropdown-end">
+            <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
+              <div className="w-12 rounded-full overflow-hidden">
+                <Avatar
+                  size={48}
+                  name={hashString(currentUserDid)}
+                  variant="marble"
+                  colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
+                />
+              </div>
             </div>
-          </button>
+            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+              <li>
+                <a onClick={() => setShowIdentityModal(true)}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                  Profile
+                </a>
+              </li>
+              <li>
+                <a onClick={() => setShowFriendsModal(true)}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  Friends
+                </a>
+              </li>
+              <li>
+                <a onClick={() => setShowImportModal(true)}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Import
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -323,9 +426,9 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
 
         <AssumptionList
           assumptions={sortedAssumptions}
-          getVoteSummary={narrative.getVoteSummary}
-          getVotesForAssumption={narrative.getVotesForAssumption}
-          getEditsForAssumption={narrative.getEditsForAssumption}
+          getVoteSummary={getFilteredVoteSummary}
+          getVotesForAssumption={getFilteredVotesForAssumption}
+          getEditsForAssumption={getFilteredEditsForAssumption}
           onVote={narrative.setVote}
           onEdit={narrative.updateAssumption}
           tags={narrative.tags}
@@ -356,29 +459,6 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
           />
         </svg>
         <span>New Assumption</span>
-      </button>
-
-      {/* Import JSON FAB */}
-      <button
-        className="btn btn-outline gap-2 fixed bottom-6 left-6 shadow-lg"
-        onClick={() => setShowImportModal(true)}
-        title="Import JSON"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-          />
-        </svg>
-        <span>Import JSON</span>
       </button>
 
       {/* Identity Modal */}
@@ -469,6 +549,70 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
             </div>
           </div>
           <div className="modal-backdrop" onClick={() => setShowImportModal(false)}></div>
+        </div>
+      )}
+
+      {/* Friends Modal */}
+      {showFriendsModal && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-4">Collaborators in diesem Board</h3>
+            <p className="text-sm text-base-content/60 mb-4">
+              Deaktiviere die Checkbox, um alle Beiträge (Assumptions, Votes, Edits) eines Users auszublenden.
+            </p>
+            <div className="space-y-2">
+              {Object.entries(narrative.doc.identities).map(([did, profile]) => (
+                <div
+                  key={did}
+                  className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    did === currentUserDid ? 'border-primary bg-primary/5' : 'border-base-300'
+                  } ${hiddenUserDids.has(did) ? 'opacity-50' : ''}`}
+                >
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                    <Avatar
+                      size={48}
+                      name={hashString(did)}
+                      variant="marble"
+                      colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className="font-semibold truncate">
+                        {profile.displayName || 'Anonymous'}
+                      </div>
+                      {did === currentUserDid && (
+                        <span className="badge badge-primary badge-sm">Du</span>
+                      )}
+                    </div>
+                    <code className="text-xs text-base-content/60 break-all">{did}</code>
+                  </div>
+                  <div className="form-control">
+                    <label className="label cursor-pointer gap-2">
+                      <span className="label-text">Anzeigen</span>
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary"
+                        checked={!hiddenUserDids.has(did)}
+                        onChange={() => toggleUserVisibility(did)}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {Object.keys(narrative.doc.identities).length === 0 && (
+              <div className="text-center py-8 text-base-content/60">
+                Noch keine Collaborators in diesem Board
+              </div>
+            )}
+            <div className="modal-action">
+              <button className="btn" onClick={() => setShowFriendsModal(false)}>
+                Schließen
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowFriendsModal(false)}></div>
         </div>
       )}
 
