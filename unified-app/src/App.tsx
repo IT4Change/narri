@@ -9,6 +9,7 @@ import { BrowserWebSocketClientAdapter } from '@automerge/automerge-repo-network
 import { IndexedDBStorageAdapter } from '@automerge/automerge-repo-storage-indexeddb';
 import { RepoContext } from '@automerge/automerge-repo-react-hooks';
 import { UnifiedApp } from './UnifiedApp';
+import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 
 // Initialize Automerge Repo with IndexedDB storage and WebSocket sync
 const repo = new Repo({
@@ -20,6 +21,7 @@ export function App() {
   return (
     <RepoContext.Provider value={repo}>
       <UnifiedApp />
+      <PWAUpdatePrompt />
     </RepoContext.Provider>
   );
 }

@@ -27,17 +27,20 @@ export function UserAvatar({ did, avatarUrl, size, className = '' }: UserAvatarP
       <img
         src={avatarUrl}
         alt="Avatar"
-        className={`w-full h-full object-cover ${className}`}
+        style={{ width: size, height: size }}
+        className={`object-cover rounded-full flex-shrink-0 ${className}`}
       />
     );
   }
 
   return (
-    <Avatar
-      size={size}
-      name={hashString(did)}
-      variant="marble"
-      colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
-    />
+    <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: size, height: size }}>
+      <Avatar
+        size={size}
+        name={hashString(did)}
+        variant="marble"
+        colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
+      />
+    </div>
   );
 }
