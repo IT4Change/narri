@@ -77,7 +77,11 @@ export function QRScannerModal<TData = unknown>({
       const currentScanner = scannerRef.current;
       if (currentScanner) {
         try {
-          currentScanner.stop().catch(() => {});
+          const state = currentScanner.getState();
+          // Only try to stop if actually scanning
+          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+            currentScanner.stop().catch(() => {});
+          }
           currentScanner.clear();
         } catch (error) {
           // Ignore errors during cleanup
@@ -91,7 +95,11 @@ export function QRScannerModal<TData = unknown>({
     // Stop and clear scanner if it exists
     if (scannerRef.current) {
       try {
-        scannerRef.current.stop().catch(() => {});
+        const state = scannerRef.current.getState();
+        // Only try to stop if actually scanning
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          scannerRef.current.stop().catch(() => {});
+        }
         scannerRef.current.clear();
         scannerRef.current = null;
       } catch (error) {
@@ -105,9 +113,18 @@ export function QRScannerModal<TData = unknown>({
   };
 
   const handleTrust = () => {
+    console.log('[QRScannerModal] handleTrust called', {
+      scannedDid,
+      currentUserDid,
+      hasOnTrustUser: !!onTrustUser
+    });
     if (scannedDid) {
+      console.log('[QRScannerModal] Calling onTrustUser with:', scannedDid);
       onTrustUser(scannedDid);
+      console.log('[QRScannerModal] onTrustUser returned, closing modal');
       handleClose();
+    } else {
+      console.warn('[QRScannerModal] handleTrust called but no scannedDid!');
     }
   };
 

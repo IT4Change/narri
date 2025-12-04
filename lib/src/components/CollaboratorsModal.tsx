@@ -86,12 +86,14 @@ export function CollaboratorsModal<TData = unknown>({
                   did === currentUserDid ? 'border-primary bg-primary/5' : 'border-base-300'
                 } ${hiddenUserDids.has(did) ? 'opacity-50' : ''}`}
               >
-                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 relative">
-                  <UserAvatar
-                    did={did}
-                    avatarUrl={profile.avatarUrl}
-                    size={48}
-                  />
+                <div className="w-12 h-12 flex-shrink-0 relative">
+                  <div className="w-12 h-12 rounded-full overflow-hidden">
+                    <UserAvatar
+                      did={did}
+                      avatarUrl={profile.avatarUrl}
+                      size={48}
+                    />
+                  </div>
                   {isTrusted && (
                     <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center border-2 border-base-100">
                       <svg

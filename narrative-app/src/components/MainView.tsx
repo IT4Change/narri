@@ -57,14 +57,17 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
   };
 
   const handleTrustUser = (trusteeDid: string) => {
+    console.log('handleTrustUser called', { currentUserDid, trusteeDid });
     docHandle.change((d) => {
-      addTrustAttestation(
+      console.log('Before addTrustAttestation:', Object.keys(d.trustAttestations).length);
+      const attestationId = addTrustAttestation(
         d,
         currentUserDid,
         trusteeDid,
         'verified',
         'in-person'
       );
+      console.log('After addTrustAttestation:', { attestationId, count: Object.keys(d.trustAttestations).length });
       d.lastModified = Date.now();
     });
   };

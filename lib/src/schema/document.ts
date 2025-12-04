@@ -88,35 +88,70 @@ export function addTrustAttestation(
   verificationMethod?: 'in-person' | 'video-call' | 'email' | 'social-proof',
   notes?: string
 ): string {
+  console.log('[addTrustAttestation] START', {
+    trusterDid,
+    trusteeDid,
+    level,
+    verificationMethod,
+    currentAttestationsCount: Object.keys(doc.trustAttestations).length,
+    attestations: doc.trustAttestations
+  });
+
   // Check if attestation already exists
   const existingId = Object.keys(doc.trustAttestations).find((id) => {
     const att = doc.trustAttestations[id];
     return att.trusterDid === trusterDid && att.trusteeDid === trusteeDid;
   });
 
+  console.log('[addTrustAttestation] Existing attestation?', existingId);
+
   const now = Date.now();
 
   if (existingId) {
     // Update existing attestation
+    console.log('[addTrustAttestation] UPDATING existing attestation');
     const att = doc.trustAttestations[existingId];
     att.level = level;
-    att.verificationMethod = verificationMethod;
-    att.notes = notes;
+    if (verificationMethod !== undefined) {
+      att.verificationMethod = verificationMethod;
+    }
+    if (notes !== undefined) {
+      att.notes = notes;
+    }
     att.updatedAt = now;
+    console.log('[addTrustAttestation] DONE - Updated attestation:', existingId);
     return existingId;
   } else {
     // Create new attestation
+    console.log('[addTrustAttestation] CREATING new attestation');
     const id = generateAttestationId();
-    doc.trustAttestations[id] = {
+    console.log('[addTrustAttestation] Generated ID:', id);
+
+    // Create base attestation object
+    const attestation: any = {
       id,
       trusterDid,
       trusteeDid,
       level,
-      verificationMethod,
-      notes,
       createdAt: now,
       updatedAt: now,
     };
+
+    // Only set optional fields if they're defined (Automerge doesn't allow undefined)
+    if (verificationMethod !== undefined) {
+      attestation.verificationMethod = verificationMethod;
+    }
+    if (notes !== undefined) {
+      attestation.notes = notes;
+    }
+
+    doc.trustAttestations[id] = attestation;
+
+    console.log('[addTrustAttestation] DONE - Created attestation:', {
+      id,
+      attestation: doc.trustAttestations[id],
+      totalCount: Object.keys(doc.trustAttestations).length
+    });
     return id;
   }
 }
