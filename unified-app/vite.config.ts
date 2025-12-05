@@ -6,8 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
 const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
-// For top-level domain deployment, we only need the app name as subpath
-const base = isGithubActions ? '/unified/' : '/';
+// GITHUB_REPOSITORY is e.g. "it4change/narrative" -> extract repo name
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || '';
+const base = isGithubActions && repoName ? `/${repoName}/unified/` : '/';
 
 export default defineConfig({
   base,
