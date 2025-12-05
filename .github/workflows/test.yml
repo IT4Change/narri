@@ -22,25 +22,16 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build library
         run: npm run build:lib
 
       - name: Run library tests
-        run: npm run test --workspace=lib
+        run: npm run test --workspace=lib -- --run
 
       - name: Run narrative-app unit tests
-        run: npm run test --workspace=narrative-app
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        if: always()
-        with:
-          files: ./lib/coverage/lcov.info,./narrative-app/coverage/lcov.info
-          flags: unittests
-          name: codecov-narrative
-          fail_ci_if_error: false
+        run: npm run test --workspace=narrative-app -- --run
 
   e2e-tests:
     name: E2E Tests
@@ -58,7 +49,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build project
         run: npm run build
