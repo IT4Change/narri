@@ -33,6 +33,10 @@ import {
 import { LoadingScreen } from './LoadingScreen';
 import { initDebugTools } from '../utils/debug';
 import { useCrossTabSync } from '../hooks/useCrossTabSync';
+import { isValidAutomergeUrl } from '@automerge/automerge-repo';
+
+/** Timeout for document loading (ms) */
+const DOC_LOAD_TIMEOUT = 10000;
 
 export interface AppShellChildProps {
   documentId: DocumentId;
@@ -109,6 +113,7 @@ export function AppShell<TDoc>({
   const [publicKey, setPublicKey] = useState<string | undefined>(undefined);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // User Document state (optional)
   const [userDocId, setUserDocId] = useState<string | undefined>(undefined);
@@ -244,23 +249,55 @@ export function AppShell<TDoc>({
     const docIdToUse = urlDocId || savedDocId;
 
     if (docIdToUse) {
-      // Load existing document (from URL or localStorage)
-      setDocumentId(docIdToUse as DocumentId);
-      saveDocumentId(storagePrefix, docIdToUse);
-
-      // Update URL if not already there
-      if (!urlDocId) {
-        window.location.hash = `doc=${docIdToUse}`;
+      // Validate AutomergeUrl format before attempting to load
+      if (!isValidAutomergeUrl(docIdToUse)) {
+        console.error('Invalid document ID format:', docIdToUse);
+        setLoadError(`Ungültige Dokument-ID: "${docIdToUse.substring(0, 30)}..."`);
+        // Clear invalid ID from storage
+        clearDocumentId(storagePrefix);
+        setIsInitializing(false);
+        return;
       }
 
-      // IMPORTANT: Wait for document to be available before finishing init
-      // This ensures the document is loaded from IndexedDB before rendering
-      const handle = repo.find(docIdToUse as DocumentId);
+      try {
+        // Load existing document (from URL or localStorage)
+        // docIdToUse is validated as AutomergeUrl above
+        const handle = repo.find(docIdToUse as AutomergeUrl);
 
-      // Wait for document to be ready
-      await handle.whenReady();
+        // Wait for document to be ready with timeout
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
+        });
 
-      setIsInitializing(false);
+        await Promise.race([handle.whenReady(), timeoutPromise]);
+
+        // Verify document was actually loaded (not just created empty)
+        const doc = handle.docSync();
+        if (!doc) {
+          throw new Error('Document not found or empty');
+        }
+
+        setDocumentId(handle.documentId);
+        saveDocumentId(storagePrefix, handle.documentId);
+
+        // Update URL if not already there
+        if (!urlDocId) {
+          window.location.hash = `doc=${docIdToUse}`;
+        }
+
+        setIsInitializing(false);
+      } catch (error) {
+        console.error('Failed to load document:', error);
+        setLoadError(
+          error instanceof Error && error.message === 'Document load timeout'
+            ? 'Dokument konnte nicht geladen werden (Timeout). Möglicherweise existiert es nicht mehr.'
+            : `Dokument konnte nicht geladen werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+        );
+        // Clear invalid ID from storage so user can recover
+        clearDocumentId(storagePrefix);
+        setIsInitializing(false);
+        return;
+      }
     } else {
       // Create new document with current user's identity
       const handle = repo.create(createEmptyDocument(identity));
@@ -313,7 +350,39 @@ export function AppShell<TDoc>({
   };
 
   // Show loading while initializing
-  if (isInitializing || !documentId || !currentUserDid) {
+  if (isInitializing) {
+    return <LoadingScreen />;
+  }
+
+  // Show error screen with recovery option
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200 p-4">
+        <div className="card bg-base-100 shadow-xl max-w-md w-full">
+          <div className="card-body text-center">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h2 className="card-title justify-center text-error">Fehler beim Laden</h2>
+            <p className="text-base-content/70 mb-4">{loadError}</p>
+            <div className="card-actions justify-center">
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  // Clear URL hash and reload to create new document
+                  window.location.hash = '';
+                  window.location.reload();
+                }}
+              >
+                Neues Dokument erstellen
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Safety check - should not happen after initialization
+  if (!documentId || !currentUserDid) {
     return <LoadingScreen />;
   }
 

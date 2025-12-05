@@ -137,8 +137,10 @@ export function AppNavbar<TData = unknown>({
   const { openProfile } = useProfileUrl();
 
   const identities = doc.identities || {};
-  const userProfile = identities[currentUserDid];
-  const displayName = userProfile?.displayName || currentUserDid.slice(0, 12) + '...';
+  const workspaceProfile = identities[currentUserDid];
+  // Prefer UserDocument profile (syncs across tabs), fallback to workspace identity
+  const displayName = userDoc?.profile?.displayName || workspaceProfile?.displayName || currentUserDid.slice(0, 12) + '...';
+  const avatarUrl = userDoc?.profile?.avatarUrl || workspaceProfile?.avatarUrl;
 
   const handleShareLink = useCallback(() => {
     if (onShareLink) {
@@ -198,7 +200,7 @@ export function AppNavbar<TData = unknown>({
             >
               <UserAvatar
                 did={currentUserDid}
-                avatarUrl={userProfile?.avatarUrl}
+                avatarUrl={avatarUrl}
                 size={44}
               />
             </button>

@@ -33,7 +33,7 @@ import {
 import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
 import type { UserDocument } from '../schema/userDocument';
-import { addTrustGiven, addTrustReceived, removeTrustGiven } from '../schema/userDocument';
+import { addTrustGiven, addTrustReceived, removeTrustGiven, updateUserProfile } from '../schema/userDocument';
 import { signEntity, verifyEntitySignature } from '../utils/signature';
 import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
 
@@ -439,10 +439,17 @@ export function useAppContext<TData = unknown>(
     (updates: { displayName?: string; avatarUrl?: string }) => {
       if (!identity || !docHandle) return;
 
-      // Update local identity
+      // Update local identity (localStorage)
       const updatedIdentity = { ...identity, ...updates };
       setIdentity(updatedIdentity);
       saveSharedIdentity(updatedIdentity);
+
+      // Update UserDocument profile (syncs across tabs/devices via Automerge)
+      if (userDocHandle) {
+        userDocHandle.change((d) => {
+          updateUserProfile(d, updates);
+        });
+      }
 
       // Update in document (app-specific or generic)
       if (onUpdateIdentityInDoc) {
@@ -488,7 +495,7 @@ export function useAppContext<TData = unknown>(
         d.identityLookup[identity.did].updatedAt = Date.now();
       });
     },
-    [identity, docHandle, onUpdateIdentityInDoc, userDocUrl]
+    [identity, docHandle, onUpdateIdentityInDoc, userDocUrl, userDocHandle]
   );
 
   const handleTrustUser = useCallback(
