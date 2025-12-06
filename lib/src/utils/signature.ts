@@ -306,3 +306,82 @@ export async function verifyEntitySignature(
 
   return { valid: true };
 }
+
+/**
+ * Profile data that gets signed
+ */
+interface ProfilePayload {
+  displayName: string;
+  avatarUrl?: string;
+  updatedAt: number;
+}
+
+/**
+ * Sign a user profile
+ *
+ * @param profile - Profile data to sign (displayName, avatarUrl, updatedAt)
+ * @param privateKeyBase64 - Base64-encoded PKCS#8 private key
+ * @returns JWS signature string
+ */
+export async function signProfile(
+  profile: ProfilePayload,
+  privateKeyBase64: string
+): Promise<string> {
+  // Create canonical payload - only include defined fields
+  const payload: ProfilePayload = {
+    displayName: profile.displayName,
+    updatedAt: profile.updatedAt,
+  };
+
+  if (profile.avatarUrl !== undefined) {
+    payload.avatarUrl = profile.avatarUrl;
+  }
+
+  return await signJws(payload, privateKeyBase64);
+}
+
+/**
+ * Verify a user profile signature
+ *
+ * @param profile - Profile with signature field
+ * @param ownerDid - DID of the document owner (to extract public key)
+ * @returns Verification result with status
+ */
+export async function verifyProfileSignature(
+  profile: { displayName: string; avatarUrl?: string; updatedAt?: number; signature?: string },
+  publicKeyBase64: string
+): Promise<{ valid: boolean; error?: string }> {
+  if (!profile.signature) {
+    return { valid: false, error: 'No signature found' };
+  }
+
+  if (!profile.updatedAt) {
+    return { valid: false, error: 'No updatedAt timestamp' };
+  }
+
+  // Recreate the payload that was signed
+  const payload: ProfilePayload = {
+    displayName: profile.displayName,
+    updatedAt: profile.updatedAt,
+  };
+
+  if (profile.avatarUrl !== undefined) {
+    payload.avatarUrl = profile.avatarUrl;
+  }
+
+  const result = await verifyJws(profile.signature, publicKeyBase64);
+
+  if (!result.valid) {
+    return { valid: false, error: result.error };
+  }
+
+  // Verify payload matches profile data
+  const payloadStr = canonicalStringify(payload);
+  const decodedPayloadStr = canonicalStringify(result.payload);
+
+  if (payloadStr !== decodedPayloadStr) {
+    return { valid: false, error: 'Payload mismatch' };
+  }
+
+  return { valid: true };
+}

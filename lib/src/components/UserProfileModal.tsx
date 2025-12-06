@@ -122,14 +122,23 @@ export function UserProfileModal<TData = unknown>({
   const canEdit = isOwnProfile && !!onUpdateIdentity;
   const workspaceProfile = doc.identities?.[did];
   const trustedProfile = trustedUserProfiles[did];
+  const profileSignatureStatus = trustedProfile?.profileSignatureStatus;
+  // Profile is considered invalid if signature verification explicitly failed
+  const isProfileInvalid = !isOwnProfile && profileSignatureStatus === 'invalid';
+
   // For own profile with userDoc, prefer userDoc data
-  const displayName = (isOwnProfile && userDoc?.profile?.displayName)
-    || trustedProfile?.displayName
-    || workspaceProfile?.displayName
-    || getDefaultDisplayName(did);
-  const avatarUrl = (isOwnProfile && userDoc?.profile?.avatarUrl)
-    || trustedProfile?.avatarUrl
-    || workspaceProfile?.avatarUrl;
+  // For invalid profiles, fall back to DID-based name
+  const displayName = isProfileInvalid
+    ? getDefaultDisplayName(did)
+    : (isOwnProfile && userDoc?.profile?.displayName)
+      || trustedProfile?.displayName
+      || workspaceProfile?.displayName
+      || getDefaultDisplayName(did);
+  const avatarUrl = isProfileInvalid
+    ? undefined
+    : (isOwnProfile && userDoc?.profile?.avatarUrl)
+      || trustedProfile?.avatarUrl
+      || workspaceProfile?.avatarUrl;
 
   // Determine trust relationship
   const hasTrustGiven = !!trustGiven;
@@ -456,7 +465,40 @@ export function UserProfileModal<TData = unknown>({
                 )}
               </div>
 
-              <div className="font-bold text-lg">{displayName}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-bold text-lg">{displayName}</div>
+                {/* Profile signature badge */}
+                {profileSignatureStatus && (
+                  <>
+                    {profileSignatureStatus === 'valid' && (
+                      <span className="tooltip tooltip-top" data-tip="Profil verifiziert">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </span>
+                    )}
+                    {profileSignatureStatus === 'invalid' && (
+                      <span className="tooltip tooltip-top" data-tip="Profil manipuliert!">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </span>
+                    )}
+                    {profileSignatureStatus === 'missing' && (
+                      <span className="tooltip tooltip-top opacity-50" data-tip="Profil nicht signiert (Legacy)">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </span>
+                    )}
+                    {profileSignatureStatus === 'pending' && (
+                      <span className="tooltip tooltip-top" data-tip="Profil wird geprüft...">
+                        <span className="loading loading-spinner loading-xs"></span>
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
 
               {/* Trust Status Badge */}
               {isMutualTrust && (

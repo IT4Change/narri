@@ -34,10 +34,13 @@ import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
 import type { UserDocument } from '../schema/userDocument';
 import { addTrustGiven, addTrustReceived, removeTrustGiven, updateUserProfile } from '../schema/userDocument';
-import { signEntity, verifyEntitySignature } from '../utils/signature';
+import { signEntity, verifyEntitySignature, signProfile, verifyProfileSignature } from '../utils/signature';
 import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
 import { updateDebugState } from '../utils/debug';
 import { broadcastProfileUpdate } from './useCrossTabSync';
+
+// Profile signature verification status type (defined early for use in helper functions)
+export type ProfileSignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending';
 
 // Storage key for seen trust attestations
 const TRUST_STORAGE_KEY = 'narrativeTrustNotifications';
@@ -105,6 +108,33 @@ async function verifyAttestationSignature(attestation: TrustAttestation): Promis
   } catch (err) {
     console.error('🔐 Error verifying attestation signature:', err);
     return false;
+  }
+}
+
+/**
+ * Verify a user profile signature
+ * Returns the signature status
+ */
+async function verifyUserProfileSignature(
+  profile: { displayName: string; avatarUrl?: string; updatedAt?: number; signature?: string },
+  ownerDid: string
+): Promise<ProfileSignatureStatus> {
+  if (!profile.signature) {
+    return 'missing';
+  }
+
+  try {
+    const publicKeyBytes = extractPublicKeyFromDid(ownerDid);
+    if (!publicKeyBytes) {
+      return 'invalid';
+    }
+
+    const publicKeyBase64 = base64Encode(publicKeyBytes);
+    const result = await verifyProfileSignature(profile, publicKeyBase64);
+
+    return result.valid ? 'valid' : 'invalid';
+  } catch {
+    return 'invalid';
   }
 }
 
@@ -181,6 +211,8 @@ export interface TrustedUserProfile {
   userDocUrl?: string;
   /** When the profile was last fetched */
   fetchedAt: number;
+  /** Profile signature verification status */
+  profileSignatureStatus?: ProfileSignatureStatus;
 }
 
 export interface AppContextValue<TData = unknown> {
@@ -211,7 +243,7 @@ export interface AppContextValue<TData = unknown> {
   // Handlers
   handleSwitchWorkspace: (workspaceId: string) => void;
   handleNewWorkspace: () => void;
-  handleUpdateIdentity: (updates: { displayName?: string; avatarUrl?: string }) => void;
+  handleUpdateIdentity: (updates: { displayName?: string; avatarUrl?: string }) => Promise<void>;
   handleTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
   handleRevokeTrust: (did: string) => void;
   handleTrustBack: (trusterDid: string) => void;
@@ -607,6 +639,12 @@ export function useAppContext<TData = unknown>(
           const trustedUserDoc = handle.doc();
 
           if (trustedUserDoc) {
+            // Verify profile signature
+            const ownerDid = trustedUserDoc.did;
+            const profileSignatureStatus = trustedUserDoc.profile
+              ? await verifyUserProfileSignature(trustedUserDoc.profile, ownerDid)
+              : 'missing';
+
             // Initial profile load
             const profile: TrustedUserProfile = {
               did,
@@ -614,16 +652,23 @@ export function useAppContext<TData = unknown>(
               avatarUrl: trustedUserDoc.profile?.avatarUrl,
               userDocUrl: docUrl,
               fetchedAt: Date.now(),
+              profileSignatureStatus,
             };
 
             // Subscribe to changes on this document
-            const changeHandler = ({ doc: changedDoc }: { doc: UserDocument }) => {
+            const changeHandler = async ({ doc: changedDoc }: { doc: UserDocument }) => {
               if (changedDoc) {
+                // Re-verify signature on change
+                const newSignatureStatus = changedDoc.profile
+                  ? await verifyUserProfileSignature(changedDoc.profile, changedDoc.did)
+                  : 'missing';
+
                 updateProfile(did, {
                   displayName: changedDoc.profile?.displayName,
                   avatarUrl: changedDoc.profile?.avatarUrl,
                   userDocUrl: docUrl,
                   fetchedAt: Date.now(),
+                  profileSignatureStatus: newSignatureStatus,
                 });
               }
             };
@@ -700,7 +745,7 @@ export function useAppContext<TData = unknown>(
   }, [openNewWorkspaceModal]);
 
   const handleUpdateIdentity = useCallback(
-    (updates: { displayName?: string; avatarUrl?: string }) => {
+    async (updates: { displayName?: string; avatarUrl?: string }) => {
       if (!identity || !docHandle) return;
 
       // Update local identity (localStorage)
@@ -708,8 +753,45 @@ export function useAppContext<TData = unknown>(
       setIdentity(updatedIdentity);
       saveSharedIdentity(updatedIdentity);
 
-      // Update UserDocument profile (syncs across tabs/devices via Automerge)
-      if (userDocHandle) {
+      // Update UserDocument profile with signature (syncs across tabs/devices via Automerge)
+      if (userDocHandle && identity.privateKey) {
+        // Get current profile to merge with updates
+        const currentDoc = userDocHandle.doc();
+        const currentProfile = currentDoc?.profile;
+
+        const newDisplayName = updates.displayName ?? currentProfile?.displayName ?? identity.displayName;
+        const newAvatarUrl = updates.avatarUrl ?? currentProfile?.avatarUrl ?? identity.avatarUrl;
+        const updatedAt = Date.now();
+
+        // Sign the profile
+        try {
+          const profilePayload = {
+            displayName: newDisplayName,
+            avatarUrl: newAvatarUrl,
+            updatedAt,
+          };
+          const signature = await signProfile(profilePayload, identity.privateKey);
+
+          userDocHandle.change((d) => {
+            d.profile.displayName = newDisplayName;
+            if (newAvatarUrl !== undefined) {
+              d.profile.avatarUrl = newAvatarUrl;
+            } else {
+              delete d.profile.avatarUrl;
+            }
+            d.profile.updatedAt = updatedAt;
+            d.profile.signature = signature;
+            d.lastModified = updatedAt;
+          });
+        } catch (err) {
+          console.error('Failed to sign profile:', err);
+          // Fallback: update without signature
+          userDocHandle.change((d) => {
+            updateUserProfile(d, updates);
+          });
+        }
+      } else if (userDocHandle) {
+        // No private key available, update without signature
         userDocHandle.change((d) => {
           updateUserProfile(d, updates);
         });

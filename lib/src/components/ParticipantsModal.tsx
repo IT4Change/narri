@@ -112,6 +112,8 @@ export function ParticipantsModal<TData = unknown>({
       displayName: trustedProfile?.displayName || profile?.displayName,
       // Prefer avatar from trusted user's UserDoc, fallback to workspace identity
       avatarUrl: trustedProfile?.avatarUrl || profile?.avatarUrl,
+      // Profile signature status for verified profiles
+      profileSignatureStatus: trustedProfile?.profileSignatureStatus,
     };
   });
 
@@ -167,7 +169,7 @@ export function ParticipantsModal<TData = unknown>({
         </p>
 
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-          {participants.map(({ did, displayName, avatarUrl }) => (
+          {participants.map(({ did, displayName, avatarUrl, profileSignatureStatus }) => (
             <UserListItem
               key={did}
               did={did}
@@ -179,6 +181,7 @@ export function ParticipantsModal<TData = unknown>({
               incomingTrust={userDoc?.trustReceived?.[did]}
               outgoingSignatureStatus={signatureStatuses[did]?.outgoing}
               incomingSignatureStatus={signatureStatuses[did]?.incoming}
+              profileSignatureStatus={profileSignatureStatus}
               onUserClick={onUserClick}
               onToggleVisibility={onToggleUserVisibility}
               showVisibilityToggle={true}

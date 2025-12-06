@@ -18,10 +18,21 @@ import type { TrustAttestation } from './identity';
 
 /**
  * User profile information
+ *
+ * Security: Profile is signed by the document owner.
+ * Invalid signatures should cause fallback to DID-based display name.
  */
 export interface UserProfile {
   displayName: string;
   avatarUrl?: string;
+  /** Timestamp when profile was last updated (included in signature) */
+  updatedAt?: number;
+  /**
+   * JWS signature proving this profile was set by the document owner
+   * Signed payload: { displayName, avatarUrl, updatedAt }
+   * Verified against the DID in the parent UserDocument
+   */
+  signature?: string;
 }
 
 /**

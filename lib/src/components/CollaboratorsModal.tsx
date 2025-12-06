@@ -138,6 +138,7 @@ export function CollaboratorsModal<TData = unknown>({
         avatarUrl: trustedProfile?.avatarUrl || workspaceProfile?.avatarUrl || lookupProfile?.avatarUrl,
         outgoingTrust: userDoc?.trustGiven?.[did],
         incomingTrust: userDoc?.trustReceived?.[did],
+        profileSignatureStatus: trustedProfile?.profileSignatureStatus,
       };
     });
 
@@ -243,7 +244,7 @@ export function CollaboratorsModal<TData = unknown>({
         </button>
 
         <div className="space-y-2 max-h-[60vh] overflow-y-auto pt-8 -mt-8">
-          {collaborators.map(({ did, displayName, avatarUrl, outgoingTrust, incomingTrust }) => (
+          {collaborators.map(({ did, displayName, avatarUrl, outgoingTrust, incomingTrust, profileSignatureStatus }) => (
             <UserListItem
               key={did}
               did={did}
@@ -255,6 +256,7 @@ export function CollaboratorsModal<TData = unknown>({
               incomingTrust={incomingTrust}
               outgoingSignatureStatus={signatureStatuses[did]?.outgoing}
               incomingSignatureStatus={signatureStatuses[did]?.incoming}
+              profileSignatureStatus={profileSignatureStatus}
               onUserClick={onUserClick}
               onToggleVisibility={onToggleUserVisibility}
               showVisibilityToggle={true}
