@@ -191,13 +191,28 @@ export function AppShell<TDoc>({
     if (savedUserDocId) {
       // Try to load existing user document
       try {
+        console.log(`[AppShell] Loading user document: ${savedUserDocId.substring(0, 30)}...`);
+
+        // Add timeout for user document loading
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('User document load timeout')), DOC_LOAD_TIMEOUT);
+        });
+
         // In automerge-repo v2.x, find() returns a Promise that resolves when ready
-        handle = await repo.find<UserDocument>(savedUserDocId as AutomergeUrl);
+        handle = await Promise.race([
+          repo.find<UserDocument>(savedUserDocId as AutomergeUrl),
+          timeoutPromise,
+        ]);
 
         // Verify the document belongs to this user
         const doc = handle.doc();
-        if (doc && doc.did !== identity.did) {
-          console.warn('User document DID mismatch, creating new document');
+        if (!doc) {
+          console.warn('[AppShell] User document loaded but doc() returned null');
+          throw new Error('User document empty');
+        }
+
+        if (doc.did !== identity.did) {
+          console.warn('[AppShell] User document DID mismatch, creating new document');
           // Create new document instead
           handle = repo.create<UserDocument>();
           handle.change((d) => {
@@ -205,25 +220,31 @@ export function AppShell<TDoc>({
             Object.assign(d, newDoc);
           });
           saveUserDocId(handle.url);
+        } else {
+          console.log('[AppShell] User document loaded successfully');
         }
       } catch (e) {
-        console.warn('Failed to load user document, creating new one', e);
-        // Create new document
+        console.warn('[AppShell] Failed to load user document, creating new one:', e);
+        // Clear old user doc ID and create new document
+        clearUserDocId();
         handle = repo.create<UserDocument>();
         handle.change((d) => {
           const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
           Object.assign(d, newDoc);
         });
         saveUserDocId(handle.url);
+        console.log('[AppShell] New user document created:', handle.url.substring(0, 30));
       }
     } else {
       // Create new user document
+      console.log('[AppShell] No saved user document, creating new one');
       handle = repo.create<UserDocument>();
       handle.change((d) => {
         const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
         Object.assign(d, newDoc);
       });
       saveUserDocId(handle.url);
+      console.log('[AppShell] New user document created:', handle.url.substring(0, 30));
     }
 
     setUserDocId(handle.url);
