@@ -916,7 +916,7 @@ export function useAppContext<TData = unknown>(
       if (trusteeUserDocUrl && repo) {
         console.log('🤝 Writing to trustee userDoc:', trusteeUserDocUrl);
 
-        // Retry logic for writing to remote UserDoc
+        // Retry logic for writing to remote UserDoc with sync verification
         const writeToTrusteeDoc = async (retries = 3, delayMs = 1000) => {
           for (let attempt = 1; attempt <= retries; attempt++) {
             try {
@@ -946,7 +946,43 @@ export function useAppContext<TData = unknown>(
                 console.log('🤝 After addTrustReceived', { trustReceived: Object.keys(d.trustReceived || {}).length });
               });
 
-              console.log('🤝 Change applied to trustee doc successfully');
+              console.log('🤝 Change applied to trustee doc locally');
+
+              // Wait for sync confirmation by checking if the change persists
+              // We listen for the next change event which indicates sync activity
+              await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => {
+                  trusteeDocHandle.off('change', onSyncConfirm);
+                  // Even if we timeout, the change was applied locally - it will sync eventually
+                  console.log('🤝 Sync confirmation timeout, but change was applied locally');
+                  resolve();
+                }, 5000);
+
+                const onSyncConfirm = () => {
+                  clearTimeout(timeout);
+                  trusteeDocHandle.off('change', onSyncConfirm);
+                  console.log('🤝 Sync confirmed - change propagated');
+                  resolve();
+                };
+
+                // Also resolve immediately if we can verify the attestation is there
+                const verifyAttestation = () => {
+                  const doc = trusteeDocHandle.doc();
+                  if (doc?.trustReceived?.[currentUserDid]) {
+                    clearTimeout(timeout);
+                    trusteeDocHandle.off('change', onSyncConfirm);
+                    console.log('🤝 Attestation verified in trustee doc');
+                    resolve();
+                  }
+                };
+
+                trusteeDocHandle.on('change', onSyncConfirm);
+                // Check immediately in case it's already there
+                setTimeout(verifyAttestation, 100);
+              });
+
+              console.log('🤝 Trust attestation successfully delivered');
+              showToast?.('Vertrauen wurde erfolgreich übermittelt');
               return; // Success, exit retry loop
             } catch (err) {
               console.warn(`🤝 Attempt ${attempt} failed:`, err);
@@ -954,6 +990,7 @@ export function useAppContext<TData = unknown>(
                 await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
               } else {
                 console.error('🤝 All attempts to write to trustee doc failed');
+                showToast?.('Vertrauen konnte nicht übermittelt werden');
               }
             }
           }

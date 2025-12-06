@@ -9,7 +9,7 @@
  * - Optional: User Document initialization (personal cross-workspace data)
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import type { Repo, DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
 import { RepoContext } from '@automerge/automerge-repo-react-hooks';
 import type { DocumentId } from '@automerge/automerge-repo';
@@ -30,16 +30,22 @@ import {
   saveUserDocId,
   clearUserDocId,
 } from '../hooks/useUserDocument';
-import { LoadingScreen } from './LoadingScreen';
+import { LoadingScreen, DocumentLoadingScreen } from './LoadingScreen';
 import { initDebugTools, updateDebugState } from '../utils/debug';
 import { useCrossTabSync } from '../hooks/useCrossTabSync';
 import { isValidAutomergeUrl } from '@automerge/automerge-repo';
 
-/** Timeout for document loading (ms) */
-const DOC_LOAD_TIMEOUT = 15000;
+/** Timeout for a single document loading attempt (ms) */
+const DOC_LOAD_TIMEOUT = 8000;
 
 /** Max retry attempts for document loading */
-const MAX_RETRY_ATTEMPTS = 3;
+const MAX_RETRY_ATTEMPTS = 5;
+
+/** Delay between retries (ms) - exponential backoff starting point */
+const RETRY_DELAY_BASE = 2000;
+
+/** Time after which to show "create new document" option (ms) */
+const SHOW_CREATE_NEW_AFTER = 20000;
 
 export interface AppShellChildProps {
   documentId: DocumentId;
@@ -110,19 +116,27 @@ export function AppShell<TDoc>({
   enableUserDocument = false,
   children,
 }: AppShellProps<TDoc>) {
+  // Core state
   const [documentId, setDocumentId] = useState<DocumentId | null>(null);
   const [currentUserDid, setCurrentUserDid] = useState<string | null>(null);
   const [privateKey, setPrivateKey] = useState<string | undefined>(undefined);
   const [publicKey, setPublicKey] = useState<string | undefined>(undefined);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
+
+  // Loading state
   const [isInitializing, setIsInitializing] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoadingDocument, setIsLoadingDocument] = useState(false);
+  const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [failedDocId, setFailedDocId] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const loadStartTimeRef = useRef<number | null>(null);
 
   // User Document state (optional)
   const [userDocId, setUserDocId] = useState<string | undefined>(undefined);
   const [userDocHandle, setUserDocHandle] = useState<DocHandle<UserDocument> | undefined>(undefined);
+
+  // Stored identity for document creation
+  const storedIdentityRef = useRef<UserIdentity | null>(null);
 
   // Initialize debug tools on mount and set repo
   useEffect(() => {
@@ -159,10 +173,21 @@ export function AppShell<TDoc>({
     };
   }, [userDocHandle]);
 
-  // Initialize document and identity on mount
+  // Track elapsed time during document loading
   useEffect(() => {
-    initializeDocument();
-  }, []);
+    if (!isLoadingDocument) {
+      setElapsedTime(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (loadStartTimeRef.current) {
+        setElapsedTime(Date.now() - loadStartTimeRef.current);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isLoadingDocument]);
 
   // Listen to URL hash changes
   useEffect(() => {
@@ -183,7 +208,7 @@ export function AppShell<TDoc>({
    * Initialize or load the User Document
    * This is a personal document that syncs across workspaces
    */
-  const initializeUserDocument = async (identity: { did: string; displayName?: string }) => {
+  const initializeUserDocument = useCallback(async (identity: { did: string; displayName?: string }) => {
     const savedUserDocId = loadUserDocId();
 
     let handle: DocHandle<UserDocument>;
@@ -249,158 +274,89 @@ export function AppShell<TDoc>({
 
     setUserDocId(handle.url);
     setUserDocHandle(handle);
-  };
+  }, [repo]);
 
-  const initializeDocument = async () => {
-    // Check URL for shared document ID (e.g., #doc=automerge:...)
+  /**
+   * Try to load a document with automatic retries and exponential backoff
+   */
+  const loadDocumentWithRetry = useCallback(async (
+    docId: string,
+    attempt: number,
+    identity: UserIdentity
+  ): Promise<boolean> => {
+    const normalizedDocId = docId.startsWith('automerge:') ? docId : `automerge:${docId}`;
+
+    // Validate AutomergeUrl format
+    if (!isValidAutomergeUrl(normalizedDocId)) {
+      console.error('[AppShell] Invalid document ID format:', docId);
+      clearDocumentId(storagePrefix);
+      // Create new document instead
+      const handle = repo.create(createEmptyDocument(identity));
+      setDocumentId(handle.documentId);
+      saveDocumentId(storagePrefix, handle.documentId);
+      window.location.hash = `doc=${handle.documentId}`;
+      return true;
+    }
+
+    try {
+      console.log(`[AppShell] Loading document (attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS}): ${normalizedDocId.substring(0, 30)}...`);
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
+      });
+
+      const handle = await Promise.race([
+        repo.find(normalizedDocId as AutomergeUrl),
+        timeoutPromise,
+      ]);
+
+      // Verify document was actually loaded
+      const doc = handle.doc();
+      if (!doc) {
+        throw new Error('Document not found or empty');
+      }
+
+      console.log(`[AppShell] Document loaded successfully`);
+      setDocumentId(handle.documentId);
+      saveDocumentId(storagePrefix, handle.documentId);
+
+      // Update URL if not already there
+      const urlParams = new URLSearchParams(window.location.hash.substring(1));
+      if (!urlParams.get('doc')) {
+        window.location.hash = `doc=${docId}`;
+      }
+
+      return true;
+    } catch (error) {
+      console.warn(`[AppShell] Attempt ${attempt + 1} failed:`, error);
+      return false;
+    }
+  }, [repo, storagePrefix, createEmptyDocument]);
+
+  /**
+   * Main initialization function
+   */
+  const initializeDocument = useCallback(async () => {
+    // Check URL for shared document ID
     const urlParams = new URLSearchParams(window.location.hash.substring(1));
     const urlDocId = urlParams.get('doc');
-
-    // Try to load existing document from URL, then localStorage
     const savedDocId = loadDocumentId(storagePrefix);
     const savedIdentity = loadSharedIdentity();
 
     // Migration: Check for fake DIDs and reset
     if (savedIdentity && isFakeDid(savedIdentity.did)) {
-      console.warn('Detected fake DID. Upgrading to real DIDs. Clearing localStorage...');
+      console.warn('Detected fake DID. Upgrading to real DIDs...');
       clearSharedIdentity();
       clearDocumentId(storagePrefix);
-      alert('Upgraded to secure DIDs. Your identity has been reset. Please create a new board.');
+      alert('Upgraded to secure DIDs. Your identity has been reset.');
       window.location.hash = '';
       window.location.reload();
       return;
     }
 
-    // Each browser needs its own identity
+    // Generate or load identity
     let identity = savedIdentity;
     if (!identity) {
-      // Generate real DID with Ed25519 keypair
-      const didIdentity = await generateDidIdentity(
-        `User-${Math.random().toString(36).substring(7)}`
-      );
-      identity = {
-        did: didIdentity.did,
-        displayName: didIdentity.displayName,
-        publicKey: didIdentity.publicKey,
-        privateKey: didIdentity.privateKey, // Store for future signing
-      };
-      saveSharedIdentity(identity);
-    }
-
-    setCurrentUserDid(identity.did);
-    setPrivateKey(identity.privateKey); // Set private key for signing
-    setPublicKey(identity.publicKey); // Set public key for identity verification
-    setDisplayName(identity.displayName); // Set display name for identity
-
-    // Initialize User Document if enabled
-    if (enableUserDocument) {
-      await initializeUserDocument(identity);
-    }
-
-    const docIdToUse = urlDocId || savedDocId;
-
-    if (docIdToUse) {
-      // Normalize document ID: add automerge: prefix if missing
-      const normalizedDocId = docIdToUse.startsWith('automerge:')
-        ? docIdToUse
-        : `automerge:${docIdToUse}`;
-
-      // Validate AutomergeUrl format
-      if (!isValidAutomergeUrl(normalizedDocId)) {
-        console.error('Invalid document ID format:', docIdToUse);
-        setLoadError(`Ungültige Dokument-ID: "${docIdToUse.substring(0, 30)}..."`);
-        // Clear invalid ID from storage
-        clearDocumentId(storagePrefix);
-        setIsInitializing(false);
-        return;
-      }
-
-      try {
-        // Load existing document
-        // In automerge-repo v2.x, find() returns a Promise that resolves when ready
-        const loadStartTime = Date.now();
-        console.log(`[AppShell] Loading document: ${normalizedDocId.substring(0, 30)}...`);
-        console.log(`[AppShell] Timeout: ${DOC_LOAD_TIMEOUT}ms, Attempt: ${retryCount + 1}/${MAX_RETRY_ATTEMPTS}`);
-
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
-        });
-
-        const handle = await Promise.race([
-          repo.find(normalizedDocId as AutomergeUrl),
-          timeoutPromise,
-        ]);
-
-        const loadDuration = Date.now() - loadStartTime;
-        console.log(`[AppShell] repo.find() resolved in ${loadDuration}ms`);
-
-        // Verify document was actually loaded (not just created empty)
-        const doc = handle.doc();
-        if (!doc) {
-          console.error('[AppShell] Document handle exists but doc() returned null/undefined');
-          throw new Error('Document not found or empty');
-        }
-
-        console.log(`[AppShell] Document loaded successfully in ${loadDuration}ms`);
-        console.log(`[AppShell] Document keys:`, Object.keys(doc));
-
-        setDocumentId(handle.documentId);
-        saveDocumentId(storagePrefix, handle.documentId);
-
-        // Update URL if not already there
-        if (!urlDocId) {
-          window.location.hash = `doc=${docIdToUse}`;
-        }
-
-        setRetryCount(0); // Reset retry count on success
-        setIsInitializing(false);
-      } catch (error) {
-        console.error('[AppShell] Failed to load document:', error);
-        console.error(`[AppShell] Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
-        console.error(`[AppShell] Error message: ${error instanceof Error ? error.message : String(error)}`);
-        console.error(`[AppShell] Document ID: ${normalizedDocId}`);
-        console.error(`[AppShell] Retry count: ${retryCount}/${MAX_RETRY_ATTEMPTS}`);
-
-        // Store failed doc ID for retry
-        setFailedDocId(docIdToUse);
-
-        setLoadError(
-          error instanceof Error && error.message === 'Document load timeout'
-            ? `Dokument konnte nicht geladen werden (Timeout nach ${DOC_LOAD_TIMEOUT / 1000}s). Möglicherweise existiert es nicht mehr oder der Sync-Server ist nicht erreichbar.`
-            : `Dokument konnte nicht geladen werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
-        );
-        // Don't clear document ID yet - allow retry
-        setIsInitializing(false);
-        return;
-      }
-    } else {
-      // Create new document with current user's identity
-      const handle = repo.create(createEmptyDocument(identity));
-      const docId = handle.documentId;
-
-      // Save document ID and add to URL
-      saveDocumentId(storagePrefix, docId);
-      window.location.hash = `doc=${docId}`;
-
-      setDocumentId(docId);
-      setIsInitializing(false);
-    }
-  };
-
-  const handleResetIdentity = () => {
-    clearSharedIdentity();
-    if (enableUserDocument) {
-      clearUserDocId();
-    }
-    window.location.reload();
-  };
-
-  const handleNewDocument = async (workspaceName?: string, workspaceAvatar?: string) => {
-    const storedIdentity = loadSharedIdentity();
-    let identity = storedIdentity;
-
-    if (!identity) {
-      // Generate new identity if none exists (shouldn't happen, but safe fallback)
       const didIdentity = await generateDidIdentity(
         `User-${Math.random().toString(36).substring(7)}`
       );
@@ -413,91 +369,132 @@ export function AppShell<TDoc>({
       saveSharedIdentity(identity);
     }
 
-    const handle = repo.create(createEmptyDocument(identity, workspaceName, workspaceAvatar));
+    setCurrentUserDid(identity.did);
+    setPrivateKey(identity.privateKey);
+    setPublicKey(identity.publicKey);
+    setDisplayName(identity.displayName);
+    storedIdentityRef.current = identity;
+
+    // Initialize User Document if enabled
+    if (enableUserDocument) {
+      await initializeUserDocument(identity);
+    }
+
+    const docIdToUse = urlDocId || savedDocId;
+
+    if (docIdToUse) {
+      // Start document loading with retries
+      setIsInitializing(false);
+      setIsLoadingDocument(true);
+      setLoadingDocId(docIdToUse);
+      loadStartTimeRef.current = Date.now();
+
+      // Try loading with automatic retries
+      for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+        setRetryCount(attempt);
+
+        const success = await loadDocumentWithRetry(docIdToUse, attempt, identity);
+        if (success) {
+          setIsLoadingDocument(false);
+          setLoadingDocId(null);
+          return;
+        }
+
+        // Wait before next retry (exponential backoff)
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          const delay = RETRY_DELAY_BASE * Math.pow(2, attempt);
+          console.log(`[AppShell] Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+
+      // All retries failed - keep showing loading screen with create option
+      console.error('[AppShell] All retry attempts failed');
+      setRetryCount(MAX_RETRY_ATTEMPTS);
+    } else {
+      // No document to load - create new one
+      const handle = repo.create(createEmptyDocument(identity));
+      setDocumentId(handle.documentId);
+      saveDocumentId(storagePrefix, handle.documentId);
+      window.location.hash = `doc=${handle.documentId}`;
+      setIsInitializing(false);
+    }
+  }, [repo, storagePrefix, createEmptyDocument, enableUserDocument, initializeUserDocument, loadDocumentWithRetry]);
+
+  // Initialize on mount
+  useEffect(() => {
+    initializeDocument();
+  }, [initializeDocument]);
+
+  const handleResetIdentity = useCallback(() => {
+    clearSharedIdentity();
+    if (enableUserDocument) {
+      clearUserDocId();
+    }
+    window.location.reload();
+  }, [enableUserDocument]);
+
+  const handleNewDocument = useCallback(async (workspaceName?: string, workspaceAvatar?: string) => {
+    const identity = storedIdentityRef.current || loadSharedIdentity();
+
+    if (!identity) {
+      const didIdentity = await generateDidIdentity(
+        `User-${Math.random().toString(36).substring(7)}`
+      );
+      const newIdentity = {
+        did: didIdentity.did,
+        displayName: didIdentity.displayName,
+        publicKey: didIdentity.publicKey,
+        privateKey: didIdentity.privateKey,
+      };
+      saveSharedIdentity(newIdentity);
+      storedIdentityRef.current = newIdentity;
+    }
+
+    const effectiveIdentity = storedIdentityRef.current!;
+    const handle = repo.create(createEmptyDocument(effectiveIdentity, workspaceName, workspaceAvatar));
     const docId = handle.documentId;
     saveDocumentId(storagePrefix, docId);
 
-    // Push new hash so back button returns to previous board
+    // Update state
+    setDocumentId(docId);
+    setIsLoadingDocument(false);
+    setLoadingDocId(null);
+
+    // Push new hash
     const url = new URL(window.location.href);
     url.hash = `doc=${docId}`;
     window.history.pushState(null, '', url.toString());
-    setDocumentId(docId);
-  };
+  }, [repo, createEmptyDocument, storagePrefix]);
 
-  // Show loading while initializing
+  const handleCreateNewFromLoading = useCallback(() => {
+    clearDocumentId(storagePrefix);
+    window.location.hash = '';
+    handleNewDocument();
+  }, [storagePrefix, handleNewDocument]);
+
+  // Show basic loading while initializing identity
   if (isInitializing) {
-    return <LoadingScreen />;
+    return <LoadingScreen message="Initialisiere..." />;
   }
 
-  // Retry loading the failed document
-  const handleRetry = () => {
-    if (failedDocId && retryCount < MAX_RETRY_ATTEMPTS) {
-      console.log(`[AppShell] Retrying document load (attempt ${retryCount + 2}/${MAX_RETRY_ATTEMPTS})`);
-      setRetryCount((prev) => prev + 1);
-      setLoadError(null);
-      setIsInitializing(true);
-      // Re-trigger initialization
-      initializeDocument();
-    }
-  };
-
-  // Show error screen with recovery option
-  if (loadError) {
-    const canRetry = failedDocId && retryCount < MAX_RETRY_ATTEMPTS - 1;
-
+  // Show document loading screen with animation
+  if (isLoadingDocument) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200 p-4">
-        <div className="card bg-base-100 shadow-xl max-w-md w-full">
-          <div className="card-body text-center">
-            <div className="text-6xl mb-4">⚠️</div>
-            <h2 className="card-title justify-center text-error">Fehler beim Laden</h2>
-            <p className="text-base-content/70 mb-4">{loadError}</p>
-
-            {/* Debug info */}
-            <div className="text-xs text-base-content/50 mb-4 font-mono bg-base-200 p-2 rounded">
-              <div>Versuch: {retryCount + 1}/{MAX_RETRY_ATTEMPTS}</div>
-              {failedDocId && <div className="truncate">Doc: {failedDocId.substring(0, 40)}...</div>}
-            </div>
-
-            <div className="card-actions justify-center flex-col gap-2">
-              {canRetry && (
-                <button
-                  className="btn btn-warning w-full"
-                  onClick={handleRetry}
-                >
-                  Erneut versuchen ({MAX_RETRY_ATTEMPTS - retryCount - 1} Versuche übrig)
-                </button>
-              )}
-              <button
-                className="btn btn-primary w-full"
-                onClick={() => {
-                  // Clear URL hash and storage, then reload to create new document
-                  clearDocumentId(storagePrefix);
-                  window.location.hash = '';
-                  window.location.reload();
-                }}
-              >
-                Neues Dokument erstellen
-              </button>
-              <button
-                className="btn btn-ghost btn-sm w-full"
-                onClick={() => {
-                  // Just reload and try again with current URL
-                  window.location.reload();
-                }}
-              >
-                Seite neu laden
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DocumentLoadingScreen
+        documentId={loadingDocId || undefined}
+        attempt={retryCount + 1}
+        maxAttempts={MAX_RETRY_ATTEMPTS}
+        elapsedTime={elapsedTime}
+        onCreateNew={handleCreateNewFromLoading}
+        showCreateNewAfter={SHOW_CREATE_NEW_AFTER}
+      />
     );
   }
 
-  // Safety check - should not happen after initialization
+  // Safety check
   if (!documentId || !currentUserDid) {
-    return <LoadingScreen />;
+    return <LoadingScreen message="Initialisiere..." />;
   }
 
   return (
