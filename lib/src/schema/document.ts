@@ -99,11 +99,12 @@ export function createBaseDocument<TData>(
   }
 
   // Build context metadata if workspace info provided
+  // Note: Only include avatar if it's defined (Automerge doesn't allow undefined values)
   const context: ContextMetadata | undefined =
     workspaceName || workspaceAvatar
       ? {
           name: workspaceName || 'Workspace',
-          avatar: workspaceAvatar,
+          ...(workspaceAvatar && { avatar: workspaceAvatar }),
         }
       : undefined;
 

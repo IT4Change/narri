@@ -8,9 +8,21 @@ import { useRepository, AppShell } from 'narrative-ui';
 import { createEmptyUnifiedDoc } from './types';
 import { UnifiedApp } from './UnifiedApp';
 
+/**
+ * Parse sync servers from environment variable
+ * Supports comma-separated list: "wss://server1.com,wss://server2.com"
+ */
+function getSyncServers(): string[] {
+  const envServers = import.meta.env.VITE_SYNC_SERVERS;
+  if (envServers) {
+    return envServers.split(',').map((s: string) => s.trim()).filter(Boolean);
+  }
+  return ['wss://sync.automerge.org'];
+}
+
 function App() {
   const repo = useRepository({
-    syncServer: import.meta.env.VITE_SYNC_SERVER || 'wss://sync.automerge.org',
+    syncServers: getSyncServers(),
     enableBroadcastChannel: true,
   });
 
