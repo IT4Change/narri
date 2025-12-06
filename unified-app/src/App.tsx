@@ -7,7 +7,6 @@
 import { useRepository, AppShell } from 'narrative-ui';
 import { createEmptyUnifiedDoc } from './types';
 import { UnifiedApp } from './UnifiedApp';
-import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 
 function App() {
   const repo = useRepository({
@@ -16,17 +15,14 @@ function App() {
   });
 
   return (
-    <>
-      <AppShell
-        repo={repo}
-        createEmptyDocument={createEmptyUnifiedDoc}
-        storagePrefix="unified"
-        enableUserDocument
-      >
-        {(props) => <UnifiedApp {...props} />}
-      </AppShell>
-      <PWAUpdatePrompt />
-    </>
+    <AppShell
+      repo={repo}
+      createEmptyDocument={createEmptyUnifiedDoc}
+      storagePrefix="unified"
+      enableUserDocument
+    >
+      {(props) => <UnifiedApp {...props} />}
+    </AppShell>
   );
 }
 
