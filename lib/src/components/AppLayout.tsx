@@ -9,7 +9,7 @@
  * Apps only need to provide their content via children render prop.
  */
 
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import type { DocHandle } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { useAppContext, type AppContextValue } from '../hooks/useAppContext';
@@ -20,6 +20,7 @@ import { AppNavbar } from './AppNavbar';
 import { TrustReciprocityModal } from './TrustReciprocityModal';
 import { NewWorkspaceModal } from './NewWorkspaceModal';
 import { UserProfileModal, type ProfileAction } from './UserProfileModal';
+import { QRScannerModal } from './QRScannerModal';
 import { Toast } from './Toast';
 import { exportIdentityToFile, importIdentityFromFile } from '../utils/storage';
 
@@ -173,6 +174,9 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
   // URL-based profile support
   const { profileDid, closeProfile } = useProfileUrl();
 
+  // QR Scanner state for verification
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
   // Centralized app context - handles ALL standard functionality
   const ctx = useAppContext({
     doc,
@@ -203,6 +207,12 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
       (error) => ctx.showToast(error)
     );
   }, [ctx]);
+
+  // Open QR scanner for verification (closes profile modal first)
+  const handleOpenScanner = useCallback(() => {
+    closeProfile();
+    setIsScannerOpen(true);
+  }, [closeProfile]);
 
   // Show loading while document is not ready
   if (!doc || !docHandle) {
@@ -242,6 +252,7 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
           trustGiven={userDoc?.trustGiven?.[profileDid]}
           trustReceived={userDoc?.trustReceived?.[profileDid]}
           onTrust={ctx.handleTrustUser}
+          onOpenScanner={handleOpenScanner}
           onRevokeTrust={ctx.handleRevokeTrust}
           userDocUrl={userDocUrl}
           customActions={profileActions?.(profileDid, closeProfile) ?? []}
@@ -253,6 +264,17 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
           onExportIdentity={handleExportIdentity}
           onImportIdentity={handleImportIdentity}
           onResetIdentity={onResetIdentity}
+        />
+      )}
+
+      {/* QR Scanner Modal for verification */}
+      {isScannerOpen && doc && (
+        <QRScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          currentUserDid={currentUserDid}
+          doc={doc}
+          onTrustUser={ctx.handleTrustUser}
         />
       )}
     </div>
