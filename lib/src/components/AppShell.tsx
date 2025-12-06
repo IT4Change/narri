@@ -36,7 +36,10 @@ import { useCrossTabSync } from '../hooks/useCrossTabSync';
 import { isValidAutomergeUrl } from '@automerge/automerge-repo';
 
 /** Timeout for document loading (ms) */
-const DOC_LOAD_TIMEOUT = 10000;
+const DOC_LOAD_TIMEOUT = 15000;
+
+/** Max retry attempts for document loading */
+const MAX_RETRY_ATTEMPTS = 3;
 
 export interface AppShellChildProps {
   documentId: DocumentId;
@@ -114,6 +117,8 @@ export function AppShell<TDoc>({
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [isInitializing, setIsInitializing] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [failedDocId, setFailedDocId] = useState<string | null>(null);
 
   // User Document state (optional)
   const [userDocId, setUserDocId] = useState<string | undefined>(undefined);
@@ -292,6 +297,10 @@ export function AppShell<TDoc>({
       try {
         // Load existing document
         // In automerge-repo v2.x, find() returns a Promise that resolves when ready
+        const loadStartTime = Date.now();
+        console.log(`[AppShell] Loading document: ${normalizedDocId.substring(0, 30)}...`);
+        console.log(`[AppShell] Timeout: ${DOC_LOAD_TIMEOUT}ms, Attempt: ${retryCount + 1}/${MAX_RETRY_ATTEMPTS}`);
+
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
         });
@@ -301,11 +310,18 @@ export function AppShell<TDoc>({
           timeoutPromise,
         ]);
 
+        const loadDuration = Date.now() - loadStartTime;
+        console.log(`[AppShell] repo.find() resolved in ${loadDuration}ms`);
+
         // Verify document was actually loaded (not just created empty)
         const doc = handle.doc();
         if (!doc) {
+          console.error('[AppShell] Document handle exists but doc() returned null/undefined');
           throw new Error('Document not found or empty');
         }
+
+        console.log(`[AppShell] Document loaded successfully in ${loadDuration}ms`);
+        console.log(`[AppShell] Document keys:`, Object.keys(doc));
 
         setDocumentId(handle.documentId);
         saveDocumentId(storagePrefix, handle.documentId);
@@ -315,16 +331,24 @@ export function AppShell<TDoc>({
           window.location.hash = `doc=${docIdToUse}`;
         }
 
+        setRetryCount(0); // Reset retry count on success
         setIsInitializing(false);
       } catch (error) {
-        console.error('Failed to load document:', error);
+        console.error('[AppShell] Failed to load document:', error);
+        console.error(`[AppShell] Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+        console.error(`[AppShell] Error message: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`[AppShell] Document ID: ${normalizedDocId}`);
+        console.error(`[AppShell] Retry count: ${retryCount}/${MAX_RETRY_ATTEMPTS}`);
+
+        // Store failed doc ID for retry
+        setFailedDocId(docIdToUse);
+
         setLoadError(
           error instanceof Error && error.message === 'Document load timeout'
-            ? 'Dokument konnte nicht geladen werden (Timeout). Möglicherweise existiert es nicht mehr.'
+            ? `Dokument konnte nicht geladen werden (Timeout nach ${DOC_LOAD_TIMEOUT / 1000}s). Möglicherweise existiert es nicht mehr oder der Sync-Server ist nicht erreichbar.`
             : `Dokument konnte nicht geladen werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
         );
-        // Clear invalid ID from storage so user can recover
-        clearDocumentId(storagePrefix);
+        // Don't clear document ID yet - allow retry
         setIsInitializing(false);
         return;
       }
@@ -384,8 +408,22 @@ export function AppShell<TDoc>({
     return <LoadingScreen />;
   }
 
+  // Retry loading the failed document
+  const handleRetry = () => {
+    if (failedDocId && retryCount < MAX_RETRY_ATTEMPTS) {
+      console.log(`[AppShell] Retrying document load (attempt ${retryCount + 2}/${MAX_RETRY_ATTEMPTS})`);
+      setRetryCount((prev) => prev + 1);
+      setLoadError(null);
+      setIsInitializing(true);
+      // Re-trigger initialization
+      initializeDocument();
+    }
+  };
+
   // Show error screen with recovery option
   if (loadError) {
+    const canRetry = failedDocId && retryCount < MAX_RETRY_ATTEMPTS - 1;
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-200 p-4">
         <div className="card bg-base-100 shadow-xl max-w-md w-full">
@@ -393,16 +431,41 @@ export function AppShell<TDoc>({
             <div className="text-6xl mb-4">⚠️</div>
             <h2 className="card-title justify-center text-error">Fehler beim Laden</h2>
             <p className="text-base-content/70 mb-4">{loadError}</p>
-            <div className="card-actions justify-center">
+
+            {/* Debug info */}
+            <div className="text-xs text-base-content/50 mb-4 font-mono bg-base-200 p-2 rounded">
+              <div>Versuch: {retryCount + 1}/{MAX_RETRY_ATTEMPTS}</div>
+              {failedDocId && <div className="truncate">Doc: {failedDocId.substring(0, 40)}...</div>}
+            </div>
+
+            <div className="card-actions justify-center flex-col gap-2">
+              {canRetry && (
+                <button
+                  className="btn btn-warning w-full"
+                  onClick={handleRetry}
+                >
+                  Erneut versuchen ({MAX_RETRY_ATTEMPTS - retryCount - 1} Versuche übrig)
+                </button>
+              )}
               <button
-                className="btn btn-primary"
+                className="btn btn-primary w-full"
                 onClick={() => {
-                  // Clear URL hash and reload to create new document
+                  // Clear URL hash and storage, then reload to create new document
+                  clearDocumentId(storagePrefix);
                   window.location.hash = '';
                   window.location.reload();
                 }}
               >
                 Neues Dokument erstellen
+              </button>
+              <button
+                className="btn btn-ghost btn-sm w-full"
+                onClick={() => {
+                  // Just reload and try again with current URL
+                  window.location.reload();
+                }}
+              >
+                Seite neu laden
               </button>
             </div>
           </div>

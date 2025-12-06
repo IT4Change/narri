@@ -35,3 +35,8 @@ app/dist
 test-results/
 playwright-report/
 playwright/.cache/
+
+# Environment files
+.env
+.env.local
+.env.production
