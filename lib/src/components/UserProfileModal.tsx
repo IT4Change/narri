@@ -639,15 +639,6 @@ export function UserProfileModal<TData = unknown>({
                 Schließen
               </button>
             </div>
-            {/* Dezenter Link zum Entfernen - nur wenn bereits vertraut */}
-            {hasTrustGiven && (
-              <button
-                className="text-xs text-red-500 text-base-content/40 hover:text-base-content/60 transition-colors"
-                onClick={() => onRevokeTrust?.(did)}
-              >
-                Aus Netzwerk entfernen
-              </button>
-            )}
           </div>
         )}
 
