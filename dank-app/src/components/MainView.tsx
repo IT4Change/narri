@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { DocHandle, AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { useDocument } from '@automerge/automerge-repo-react-hooks';
-import { AppLayout, type AppContextValue, type UserDocument } from 'narrative-ui';
+import { AppLayout, type AppContextValue, type UserDocument, type WorkspaceLoadingState } from 'narrative-ui';
 import type { Voucher } from '../schema';
 // Debug extensions are auto-initialized via import
 import '../debug';
@@ -13,7 +13,7 @@ import { TransferVoucherModal } from './TransferVoucherModal';
 import { VoucherDetailModal } from './VoucherDetailModal';
 
 interface MainViewProps {
-  documentId: DocumentId;
+  documentId: DocumentId | null;
   currentUserDid: string;
   privateKey?: string;
   publicKey?: string;
@@ -23,6 +23,8 @@ interface MainViewProps {
   // User Document (from AppShell when enableUserDocument is true)
   userDocId?: string;
   userDocHandle?: DocHandle<UserDocument>;
+  // Workspace loading state (from AppShell when document is still loading)
+  workspaceLoading?: WorkspaceLoadingState;
   // Debug Dashboard toggle (from AppShell)
   onToggleDebugDashboard: () => void;
 }
@@ -37,6 +39,7 @@ export function MainView({
   onNewDocument,
   userDocId,
   userDocHandle,
+  workspaceLoading,
   onToggleDebugDashboard,
 }: MainViewProps) {
   // Load UserDocument for trust/verification features
@@ -107,7 +110,7 @@ export function MainView({
     <AppLayout
       doc={doc}
       docHandle={docHandle}
-      documentId={documentId.toString()}
+      documentId={documentId?.toString() ?? ''}
       currentUserDid={currentUserDid}
       appTitle="Dank"
       workspaceName="Dank Wallet"
@@ -119,6 +122,7 @@ export function MainView({
       userDoc={userDoc}
       userDocUrl={userDocHandle?.url}
       onToggleDebugDashboard={onToggleDebugDashboard}
+      workspaceLoading={workspaceLoading}
     >
       {(_ctx: AppContextValue) => (
         <>

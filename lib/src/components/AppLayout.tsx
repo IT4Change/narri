@@ -23,7 +23,9 @@ import { UserProfileModal, type ProfileAction } from './UserProfileModal';
 import { QRScannerModal } from './QRScannerModal';
 import { Toast } from './Toast';
 import { Confetti } from './Confetti';
+import { WorkspaceLoadingContent } from './LoadingScreen';
 import { exportIdentityToFile, importIdentityFromFile } from '../utils/storage';
+import type { WorkspaceLoadingState } from './AppShell';
 
 export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
   /** The Automerge document */
@@ -110,6 +112,12 @@ export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
    * Callback to toggle the debug dashboard (from AppShell)
    */
   onToggleDebugDashboard?: () => void;
+
+  /**
+   * Workspace loading state (from AppShell when document is still loading)
+   * When present, shows loading UI in content area instead of children
+   */
+  workspaceLoading?: WorkspaceLoadingState;
 }
 
 /**
@@ -174,6 +182,7 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
   profileActions,
   hideProfileTrustActions = false,
   onToggleDebugDashboard,
+  workspaceLoading,
 }: AppLayoutProps<TDoc>) {
   // Get repo for bidirectional trust sync
   const repo = useRepo();
@@ -221,8 +230,75 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
     setIsScannerOpen(true);
   }, [closeProfile]);
 
-  // Show loading while document is not ready
+  // Show full loading screen only during initial identity load (before AppShell renders children)
+  // Once we have workspaceLoading, we show the shell with loading content
   if (!doc || !docHandle) {
+    // If we have workspaceLoading state, show shell with loading content
+    if (workspaceLoading) {
+      return (
+        <div className="w-screen h-dvh bg-base-200 flex flex-col overflow-hidden">
+          {/* Minimal Navbar while loading */}
+          <div className="navbar bg-base-100 shadow-lg z-[1100] flex-shrink-0">
+            <div className="navbar-start">
+              <div className="flex items-center gap-3 px-2">
+                <img src={logoUrl} alt="Logo" className="w-8 h-8" />
+                <span className="text-lg font-semibold text-base-content/50">
+                  Workspace wird geladen...
+                </span>
+              </div>
+            </div>
+            <div className="navbar-center" />
+            <div className="navbar-end gap-2">
+              {/* User avatar from UserDocument (available before workspace loads) */}
+              {userDoc && (
+                <div className="flex items-center gap-2 pr-2">
+                  <div className="w-10 h-10 rounded-full bg-base-300 overflow-hidden">
+                    {userDoc.profile?.avatarUrl ? (
+                      <img
+                        src={userDoc.profile.avatarUrl}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-base-content/50">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-6 w-6"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <span className="hidden lg:block font-medium text-base-content/70">
+                    {userDoc.profile?.displayName || 'Benutzer'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Workspace Loading Content */}
+          <WorkspaceLoadingContent
+            documentId={workspaceLoading.documentId}
+            attempt={workspaceLoading.attempt}
+            maxAttempts={workspaceLoading.maxAttempts}
+            elapsedTime={workspaceLoading.elapsedTime}
+            onCreateNew={workspaceLoading.onCreateNew}
+            showCreateNewAfter={workspaceLoading.showCreateNewAfter}
+          />
+        </div>
+      );
+    }
+    // No workspaceLoading state - show default loading
     return <>{loadingComponent ?? <DefaultLoading />}</>;
   }
 

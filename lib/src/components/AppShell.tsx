@@ -30,7 +30,7 @@ import {
   saveUserDocId,
   clearUserDocId,
 } from '../hooks/useUserDocument';
-import { LoadingScreen, DocumentLoadingScreen } from './LoadingScreen';
+import { LoadingScreen } from './LoadingScreen';
 import { initDebugTools, updateDebugState } from '../utils/debug';
 import { useCrossTabSync } from '../hooks/useCrossTabSync';
 import { isValidAutomergeUrl } from '@automerge/automerge-repo';
@@ -48,8 +48,26 @@ const RETRY_DELAY_BASE = 2000;
 /** Time after which to show "create new document" option (ms) */
 const SHOW_CREATE_NEW_AFTER = 20000;
 
+export interface WorkspaceLoadingState {
+  /** Whether the workspace document is currently loading */
+  isLoading: boolean;
+  /** Document ID being loaded (if any) */
+  documentId?: string;
+  /** Current retry attempt (1-based) */
+  attempt: number;
+  /** Maximum retry attempts */
+  maxAttempts: number;
+  /** Time elapsed since loading started (ms) */
+  elapsedTime: number;
+  /** Callback to create a new document instead */
+  onCreateNew: () => void;
+  /** Time after which to show "create new" option (ms) */
+  showCreateNewAfter: number;
+}
+
 export interface AppShellChildProps {
-  documentId: DocumentId;
+  /** Document ID (may be null while loading) */
+  documentId: DocumentId | null;
   currentUserDid: string;
   privateKey?: string;
   publicKey?: string;
@@ -60,6 +78,9 @@ export interface AppShellChildProps {
   // User Document (optional, only if enableUserDocument is true)
   userDocId?: string;
   userDocHandle?: DocHandle<UserDocument>;
+
+  // Workspace loading state (for showing loading UI in content area)
+  workspaceLoading?: WorkspaceLoadingState;
 
   // Debug Dashboard controls
   onToggleDebugDashboard: () => void;
@@ -496,29 +517,24 @@ export function AppShell<TDoc>({
     handleNewDocument();
   }, [storagePrefix, handleNewDocument]);
 
-  // Show basic loading while initializing identity
-  if (isInitializing) {
+  // Show basic loading while initializing identity and user document
+  // Once identity is ready, we render the shell even if workspace is still loading
+  if (isInitializing || !currentUserDid) {
     return <LoadingScreen message="Initialisiere..." />;
   }
 
-  // Show document loading screen with animation
-  if (isLoadingDocument) {
-    return (
-      <DocumentLoadingScreen
-        documentId={loadingDocId || undefined}
-        attempt={retryCount + 1}
-        maxAttempts={MAX_RETRY_ATTEMPTS}
-        elapsedTime={elapsedTime}
-        onCreateNew={handleCreateNewFromLoading}
-        showCreateNewAfter={SHOW_CREATE_NEW_AFTER}
-      />
-    );
-  }
-
-  // Safety check
-  if (!documentId || !currentUserDid) {
-    return <LoadingScreen message="Initialisiere..." />;
-  }
+  // Build workspace loading state for children
+  const workspaceLoading: WorkspaceLoadingState | undefined = isLoadingDocument
+    ? {
+        isLoading: true,
+        documentId: loadingDocId || undefined,
+        attempt: retryCount + 1,
+        maxAttempts: MAX_RETRY_ATTEMPTS,
+        elapsedTime,
+        onCreateNew: handleCreateNewFromLoading,
+        showCreateNewAfter: SHOW_CREATE_NEW_AFTER,
+      }
+    : undefined;
 
   return (
     <RepoContext.Provider value={repo}>
@@ -531,6 +547,8 @@ export function AppShell<TDoc>({
         onResetIdentity: handleResetIdentity,
         onNewDocument: handleNewDocument,
         onToggleDebugDashboard: () => setShowDebugDashboard(prev => !prev),
+        // Workspace loading state (when document is still loading)
+        workspaceLoading,
         // User Document (only if enabled)
         ...(enableUserDocument && {
           userDocId,

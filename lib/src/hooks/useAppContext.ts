@@ -1299,6 +1299,27 @@ export function useAppContext<TData = unknown>(
       }
     : null;
 
+  // Build document URL for sharing
+  const documentUrl = documentId ? `${window.location.origin}${window.location.pathname}#doc=${documentId}` : undefined;
+
+  // Handler to update workspace metadata (name, avatar)
+  const handleUpdateWorkspace = useCallback((updates: { name?: string; avatar?: string }) => {
+    if (!docHandle) return;
+
+    docHandle.change((d) => {
+      if (!d.context) {
+        d.context = { name: '' };
+      }
+      if (updates.name !== undefined) {
+        d.context.name = updates.name;
+      }
+      if (updates.avatar !== undefined) {
+        d.context.avatar = updates.avatar;
+      }
+      d.lastModified = Date.now();
+    });
+  }, [docHandle]);
+
   // Build navbar props (only if doc is loaded)
   const navbarProps = doc
     ? {
@@ -1320,6 +1341,8 @@ export function useAppContext<TData = unknown>(
         trustedUserProfiles,
         onOpenProfile: openProfile,
         onMutualTrustEstablished: handleMutualTrustEstablished,
+        documentUrl,
+        onUpdateWorkspace: handleUpdateWorkspace,
       }
     : null;
 

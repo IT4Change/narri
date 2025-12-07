@@ -73,7 +73,7 @@ export {
 } from './hooks/useDocumentChanges';
 
 // Components exports
-export { AppShell, type AppShellProps, type AppShellChildProps } from './components/AppShell';
+export { AppShell, type AppShellProps, type AppShellChildProps, type WorkspaceLoadingState } from './components/AppShell';
 export { AppNavbar, type AppNavbarProps } from './components/AppNavbar';
 export {
   WorkspaceSwitcher,
@@ -82,6 +82,7 @@ export {
   upsertWorkspace,
   type WorkspaceInfo,
 } from './components/WorkspaceSwitcher';
+export { WorkspaceModal } from './components/WorkspaceModal';
 export { LoadingScreen } from './components/LoadingScreen';
 export { UserAvatar } from './components/UserAvatar';
 export { ProfileModal } from './components/ProfileModal';

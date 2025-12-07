@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import type { DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
-import { DocumentId } from '@automerge/automerge-repo';
+import type { DocHandle, AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { useDocument } from '@automerge/automerge-repo-react-hooks';
-import { AppLayout, type AppContextValue, type UserDocument, type ProfileAction } from 'narrative-ui';
+import { AppLayout, type AppContextValue, type UserDocument, type ProfileAction, type WorkspaceLoadingState } from 'narrative-ui';
 import { useMapDocument } from '../hooks/useMapDocument';
 import { MapContent } from './MapContent';
 
 interface MapViewProps {
-  documentId: DocumentId;
+  documentId: DocumentId | null;
   currentUserDid: string;
   privateKey?: string;
   publicKey?: string;
@@ -17,6 +16,8 @@ interface MapViewProps {
   // User Document (from AppShell when enableUserDocument is true)
   userDocId?: string;
   userDocHandle?: DocHandle<UserDocument>;
+  // Workspace loading state (from AppShell when document is still loading)
+  workspaceLoading?: WorkspaceLoadingState;
   // Debug Dashboard toggle (from AppShell)
   onToggleDebugDashboard: () => void;
 }
@@ -35,6 +36,7 @@ export function MapView({
   onNewDocument,
   userDocId,
   userDocHandle,
+  workspaceLoading,
   onToggleDebugDashboard,
 }: MapViewProps) {
   // Hook now handles docHandle internally using useDocHandle
@@ -96,7 +98,7 @@ export function MapView({
     <AppLayout
       doc={mapData?.doc}
       docHandle={mapData?.docHandle}
-      documentId={documentId.toString()}
+      documentId={documentId?.toString() ?? ''}
       currentUserDid={currentUserDid}
       appTitle="Narrative Map"
       workspaceName="Map"
@@ -110,6 +112,7 @@ export function MapView({
       userDocUrl={userDocHandle?.url}
       profileActions={getProfileActions}
       onToggleDebugDashboard={onToggleDebugDashboard}
+      workspaceLoading={workspaceLoading}
     >
       {(ctx: AppContextValue) => (
         <div className="flex-1 relative overflow-hidden">

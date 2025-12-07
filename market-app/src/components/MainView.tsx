@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { DocHandle, AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { useDocument } from '@automerge/automerge-repo-react-hooks';
-import { AppLayout, type AppContextValue, type UserDocument } from 'narrative-ui';
+import { AppLayout, type AppContextValue, type UserDocument, type WorkspaceLoadingState } from 'narrative-ui';
 import { useMarket } from '../hooks/useMarket';
 import type { ListingType, CategoryId } from '../schema';
 import { CATEGORIES } from '../schema';
@@ -11,7 +11,7 @@ import { CreateListingModal } from './CreateListingModal';
 import '../debug';
 
 interface MainViewProps {
-  documentId: DocumentId;
+  documentId: DocumentId | null;
   currentUserDid: string;
   privateKey?: string;
   publicKey?: string;
@@ -21,6 +21,8 @@ interface MainViewProps {
   // User Document (from AppShell when enableUserDocument is true)
   userDocId?: string;
   userDocHandle?: DocHandle<UserDocument>;
+  // Workspace loading state (from AppShell when document is still loading)
+  workspaceLoading?: WorkspaceLoadingState;
   // Debug Dashboard toggle (from AppShell)
   onToggleDebugDashboard: () => void;
 }
@@ -35,6 +37,7 @@ export function MainView({
   onNewDocument,
   userDocId,
   userDocHandle,
+  workspaceLoading,
   onToggleDebugDashboard,
 }: MainViewProps) {
   // Load UserDocument for trust/verification features
@@ -100,7 +103,7 @@ export function MainView({
     <AppLayout
       doc={doc}
       docHandle={docHandle}
-      documentId={documentId.toString()}
+      documentId={documentId?.toString() ?? ''}
       currentUserDid={currentUserDid}
       appTitle="Marktplatz"
       workspaceName="Marktplatz"
@@ -113,6 +116,7 @@ export function MainView({
       userDoc={userDoc}
       userDocUrl={userDocHandle?.url}
       onToggleDebugDashboard={onToggleDebugDashboard}
+      workspaceLoading={workspaceLoading}
     >
       {(ctx: AppContextValue) => {
         // Filtered listings

@@ -49,10 +49,11 @@ interface UseMarketReturn {
   updateIdentity: (did: string, updates: { displayName?: string; avatarUrl?: string }) => void;
 }
 
-export function useMarket(documentId: DocumentId): UseMarketReturn {
+export function useMarket(documentId: DocumentId | null): UseMarketReturn {
   // In automerge-repo v2.x, useDocHandle handles async loading
-  const docHandle = useDocHandle<MarketAppDoc>(documentId);
-  const [doc] = useDocument<MarketAppDoc>(documentId);
+  // Handle null docId case - hooks must be called unconditionally
+  const docHandle = useDocHandle<MarketAppDoc>(documentId ?? undefined);
+  const [doc] = useDocument<MarketAppDoc>(documentId ?? undefined);
 
   // Computed values
   const listings = doc?.data?.listings

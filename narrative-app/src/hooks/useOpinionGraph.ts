@@ -15,22 +15,24 @@ import { signEntity } from 'narrative-ui';
  * Main hook for accessing and mutating Narrative data
  * Uses Automerge CRDT for automatic conflict resolution
  *
+ * @param docId - Document ID (can be null while loading)
  * @param privateKey - Optional Base64-encoded private key for signing entities (Phase 2)
  * @param publicKey - Optional Base64-encoded public key for identity verification (Phase 2)
  * @param displayName - Optional display name for the current user
  */
 export function useOpinionGraph(
-  docId: DocumentId,
+  docId: DocumentId | null,
   docHandle: DocHandle<OpinionGraphDoc> | undefined,
   currentUserDid: string,
   privateKey?: string,
   publicKey?: string,
   displayName?: string
 ) {
-  const [doc] = useDocument<OpinionGraphDoc>(docId);
+  // Handle null docId case - hooks must be called unconditionally
+  const [doc] = useDocument<OpinionGraphDoc>(docId ?? undefined);
 
   // Return null if doc or docHandle not ready yet
-  if (!doc || !docHandle) {
+  if (!docId || !doc || !docHandle) {
     return null;
   }
 

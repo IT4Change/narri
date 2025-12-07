@@ -17,6 +17,8 @@ interface WorkspaceSwitcherProps {
   logoUrl: string;
   onSwitchWorkspace: (workspaceId: string) => void;
   onNewWorkspace: () => void;
+  /** Callback to open workspace modal (for current workspace) */
+  onOpenWorkspaceModal?: () => void;
 }
 
 export function WorkspaceSwitcher({
@@ -25,6 +27,7 @@ export function WorkspaceSwitcher({
   logoUrl,
   onSwitchWorkspace,
   onNewWorkspace,
+  onOpenWorkspaceModal,
 }: WorkspaceSwitcherProps) {
   const displayName = currentWorkspace?.name || 'Workspace';
 
@@ -67,14 +70,17 @@ export function WorkspaceSwitcher({
         tabIndex={0}
         className="dropdown-content menu bg-base-100 rounded-box z-[2000] mt-6 w-64 p-2 shadow-lg"
       >
-        {/* Current workspace indicator */}
+        {/* Current workspace - click opens modal */}
         {currentWorkspace && (
           <>
             <li className="menu-title text-xs opacity-50 px-2 pt-1">
               Aktueller Workspace
             </li>
             <li>
-              <a className="flex items-center gap-3 bg-base-200">
+              <a
+                className="flex items-center gap-2 bg-base-200"
+                onClick={() => onOpenWorkspaceModal?.()}
+              >
                 {currentWorkspace.avatar ? (
                   <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
                     <img
@@ -90,18 +96,11 @@ export function WorkspaceSwitcher({
                     </span>
                   </div>
                 )}
-                <span className="truncate font-medium">{currentWorkspace.name}</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ml-auto text-primary"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
+                <span className="truncate font-medium flex-1">{currentWorkspace.name}</span>
+                {/* Settings icon hint */}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </a>
             </li>

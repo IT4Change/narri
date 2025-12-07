@@ -57,7 +57,7 @@ interface TransferSignaturePayload {
  * Hook options
  */
 interface UseDankWalletOptions {
-  documentId: DocumentId;
+  documentId: DocumentId | null;
   currentUserDid: string;
   privateKey?: string;
 }
@@ -78,8 +78,9 @@ export function useDankWallet({
   privateKey,
 }: UseDankWalletOptions) {
   // In automerge-repo v2.x, useDocHandle handles async loading
-  const docHandle = useDocHandle<DankWalletDoc>(documentId);
-  const [doc] = useDocument<DankWalletDoc>(documentId);
+  // Handle null docId case - hooks must be called unconditionally
+  const docHandle = useDocHandle<DankWalletDoc>(documentId ?? undefined);
+  const [doc] = useDocument<DankWalletDoc>(documentId ?? undefined);
 
   // Track validation results for UI
   const [validationResults, setValidationResults] = useState<

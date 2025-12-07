@@ -7,20 +7,23 @@ import { signEntity } from 'narrative-ui';
 /**
  * Main hook for accessing and mutating Map data
  * Uses Automerge CRDT for automatic conflict resolution
+ *
+ * @param docId - Document ID (can be null while loading)
  */
 export function useMapDocument(
-  docId: DocumentId,
+  docId: DocumentId | null,
   currentUserDid: string,
   privateKey?: string,
   publicKey?: string,
   displayName?: string
 ) {
   // In automerge-repo v2.x, useDocHandle handles async loading
-  const docHandle = useDocHandle<MapDoc>(docId);
-  const [doc] = useDocument<MapDoc>(docId);
+  // Handle null docId case - hooks must be called unconditionally
+  const docHandle = useDocHandle<MapDoc>(docId ?? undefined);
+  const [doc] = useDocument<MapDoc>(docId ?? undefined);
 
   // Return null if doc or docHandle not ready yet
-  if (!doc || !docHandle) {
+  if (!docId || !doc || !docHandle) {
     return null;
   }
 

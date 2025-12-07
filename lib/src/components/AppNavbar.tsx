@@ -27,9 +27,9 @@
 
 import { useState, useCallback, type ReactNode } from 'react';
 import { UserAvatar } from './UserAvatar';
-import { ParticipantsModal } from './ParticipantsModal';
 import { CollaboratorsModal } from './CollaboratorsModal';
 import { QRScannerModal } from './QRScannerModal';
+import { WorkspaceModal } from './WorkspaceModal';
 import {
   WorkspaceSwitcher,
   type WorkspaceInfo,
@@ -79,12 +79,6 @@ export interface AppNavbarProps<TData = unknown> {
   /** Optional: Hide workspace switcher (for simple single-doc apps) */
   hideWorkspaceSwitcher?: boolean;
 
-  /** Optional: Callback when share link is clicked (default: copy to clipboard) */
-  onShareLink?: () => void;
-
-  /** Optional: Show toast message */
-  onShowToast?: (message: string) => void;
-
   /** User document for trust information (optional) */
   userDoc?: UserDocument | null;
 
@@ -105,6 +99,15 @@ export interface AppNavbarProps<TData = unknown> {
 
   /** Callback to toggle debug dashboard */
   onToggleDebugDashboard?: () => void;
+
+  /** Document URL for sharing (for WorkspaceModal) */
+  documentUrl?: string;
+
+  /** Callback to update workspace (name, avatar) */
+  onUpdateWorkspace?: (updates: { name?: string; avatar?: string }) => void;
+
+  /** Show toast message */
+  onShowToast?: (message: string) => void;
 }
 
 export function AppNavbar<TData = unknown>({
@@ -121,17 +124,18 @@ export function AppNavbar<TData = unknown>({
   children,
   appTitle,
   hideWorkspaceSwitcher = false,
-  onShareLink,
-  onShowToast,
   userDoc,
   userDocUrl,
   trustedUserProfiles,
   onOpenProfile,
   onMutualTrustEstablished,
   onToggleDebugDashboard,
+  documentUrl,
+  onUpdateWorkspace,
+  onShowToast,
 }: AppNavbarProps<TData>) {
   // Modal states
-  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
   const [showCollaboratorsModal, setShowCollaboratorsModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
@@ -144,23 +148,13 @@ export function AppNavbar<TData = unknown>({
   const displayName = userDoc?.profile?.displayName || workspaceProfile?.displayName || currentUserDid.slice(0, 12) + '...';
   const avatarUrl = userDoc?.profile?.avatarUrl || workspaceProfile?.avatarUrl;
 
-  const handleShareLink = useCallback(() => {
-    if (onShareLink) {
-      onShareLink();
-    } else {
-      const url = window.location.href;
-      navigator.clipboard.writeText(url);
-      onShowToast?.('Link in Zwischenablage kopiert!');
-    }
-  }, [onShareLink, onShowToast]);
-
   const handleToggleVisibility = useCallback((did: string) => {
     onToggleUserVisibility?.(did);
   }, [onToggleUserVisibility]);
 
   return (
     <>
-      <div className="navbar bg-base-100 shadow-lg z-[600] flex-shrink-0">
+      <div className="navbar bg-base-100 shadow-lg z-[1100] flex-shrink-0">
         {/* Left: Workspace Switcher or App Title */}
         <div className="navbar-start">
           {hideWorkspaceSwitcher ? (
@@ -172,6 +166,7 @@ export function AppNavbar<TData = unknown>({
               logoUrl={logoUrl}
               onSwitchWorkspace={onSwitchWorkspace}
               onNewWorkspace={onNewWorkspace}
+              onOpenWorkspaceModal={() => setShowWorkspaceModal(true)}
             />
           )}
         </div>
@@ -276,64 +271,6 @@ export function AppNavbar<TData = unknown>({
                   Scanner
                 </a>
               </li>
-              <div className="divider my-1"></div>
-              <li>
-                <a onClick={() => setShowParticipantsModal(true)}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  Teilnehmer
-                </a>
-              </li>
-              <li>
-                <a onClick={onNewWorkspace}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v12m6-6H6"
-                    />
-                  </svg>
-                  Neuer Workspace
-                </a>
-              </li>
-              <li>
-                <a onClick={handleShareLink}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                    />
-                  </svg>
-                  Link teilen
-                </a>
-              </li>
               {onToggleDebugDashboard && (
                 <>
                   <div className="divider my-1"></div>
@@ -364,17 +301,21 @@ export function AppNavbar<TData = unknown>({
       </div>
 
       {/* Integrated Modals */}
-      <ParticipantsModal
-        isOpen={showParticipantsModal}
-        onClose={() => setShowParticipantsModal(false)}
+      <WorkspaceModal
+        isOpen={showWorkspaceModal}
+        onClose={() => setShowWorkspaceModal(false)}
+        currentWorkspace={currentWorkspace}
         doc={doc}
         currentUserDid={currentUserDid}
-        hiddenUserDids={hiddenUserDids}
-        onToggleUserVisibility={handleToggleVisibility}
-        onUserClick={(did) => {
-          setShowParticipantsModal(false);
+        documentUrl={documentUrl}
+        onUpdateWorkspace={onUpdateWorkspace}
+        onShowToast={onShowToast}
+        onUserClick={(did: string) => {
+          setShowWorkspaceModal(false);
           openProfile(did);
         }}
+        hiddenUserDids={hiddenUserDids}
+        onToggleUserVisibility={handleToggleVisibility}
         userDoc={userDoc}
         trustedUserProfiles={trustedUserProfiles}
       />

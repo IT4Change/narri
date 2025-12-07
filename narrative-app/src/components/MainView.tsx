@@ -1,7 +1,6 @@
-import type { DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
-import { DocumentId } from '@automerge/automerge-repo';
+import type { DocHandle, AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks';
-import { AppLayout, type AppContextValue, type UserDocument } from 'narrative-ui';
+import { AppLayout, type AppContextValue, type UserDocument, type WorkspaceLoadingState } from 'narrative-ui';
 import { useOpinionGraph } from '../hooks/useOpinionGraph';
 import type { OpinionGraphDoc } from '../schema/opinion-graph';
 import { AssumptionList } from './AssumptionList';
@@ -12,7 +11,7 @@ import { useState } from 'react';
 import '../debug';
 
 interface MainViewProps {
-  documentId: DocumentId;
+  documentId: DocumentId | null;
   currentUserDid: string;
   privateKey?: string;
   publicKey?: string;
@@ -22,6 +21,8 @@ interface MainViewProps {
   // User Document (from AppShell when enableUserDocument is true)
   userDocId?: string;
   userDocHandle?: DocHandle<UserDocument>;
+  // Workspace loading state (from AppShell when document is still loading)
+  workspaceLoading?: WorkspaceLoadingState;
   // Debug Dashboard toggle (from AppShell)
   onToggleDebugDashboard: () => void;
 }
@@ -40,10 +41,12 @@ export function MainView({
   onNewDocument,
   userDocId,
   userDocHandle: _userDocHandle, // Available for direct mutations if needed
+  workspaceLoading,
   onToggleDebugDashboard,
 }: MainViewProps) {
   // In automerge-repo v2.x, use useDocHandle hook instead of repo.find()
-  const docHandle = useDocHandle<OpinionGraphDoc>(documentId);
+  // Only call hooks when documentId is available
+  const docHandle = useDocHandle<OpinionGraphDoc>(documentId ?? undefined);
   const narrative = useOpinionGraph(documentId, docHandle, currentUserDid, privateKey, publicKey, displayName);
 
   // Load user document reactively
@@ -86,7 +89,7 @@ export function MainView({
     <AppLayout
       doc={narrative?.doc}
       docHandle={docHandle}
-      documentId={documentId.toString()}
+      documentId={documentId?.toString() ?? ''}
       currentUserDid={currentUserDid}
       appTitle="Narrative"
       workspaceName="Narrative Board"
@@ -99,6 +102,7 @@ export function MainView({
       userDoc={userDoc}
       userDocUrl={userDocHandle?.url}
       onToggleDebugDashboard={onToggleDebugDashboard}
+      workspaceLoading={workspaceLoading}
     >
       {(ctx: AppContextValue) => {
         // Wrapper functions that filter by hidden users
