@@ -151,6 +151,11 @@ export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
    * Callback to switch workspace without page reload (from AppShell)
    */
   onSwitchWorkspace?: (workspaceId: string) => void;
+
+  /**
+   * Callback to import identity (from AppShell, handles state update without page reload)
+   */
+  onImportIdentity?: () => void;
 }
 
 /**
@@ -221,6 +226,7 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
   identity,
   onGoToStart,
   onSwitchWorkspace,
+  onImportIdentity,
 }: AppLayoutProps<TDoc>) {
   // Get repo for bidirectional trust sync
   const repo = useRepo();
@@ -328,11 +334,17 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
   }, []);
 
   const handleImportIdentity = useCallback(() => {
-    importIdentityFromFile(
-      undefined,
-      (error) => ctx.showToast(error)
-    );
-  }, [ctx]);
+    if (onImportIdentity) {
+      // Use AppShell's handler for proper state management without reload
+      onImportIdentity();
+    } else {
+      // Fallback: legacy behavior with reload
+      importIdentityFromFile(
+        () => window.location.reload(),
+        (error) => ctx.showToast(error)
+      );
+    }
+  }, [onImportIdentity, ctx]);
 
   // Open QR scanner for verification (closes profile modal first)
   const handleOpenScanner = useCallback(() => {

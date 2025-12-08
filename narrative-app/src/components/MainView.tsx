@@ -34,6 +34,8 @@ interface MainViewProps {
   onGoToStart?: () => void;
   // Callback to switch workspace without page reload
   onSwitchWorkspace?: (workspaceId: string) => void;
+  // Callback to import identity (handles state update without page reload)
+  onImportIdentity?: () => void;
 }
 
 /**
@@ -57,6 +59,7 @@ export function MainView({
   onCancelLoading,
   onGoToStart,
   onSwitchWorkspace,
+  onImportIdentity,
 }: MainViewProps) {
   // In automerge-repo v2.x, use useDocHandle hook instead of repo.find()
   // Only call hooks when documentId is available
@@ -120,6 +123,7 @@ export function MainView({
       identity={{ did: currentUserDid, displayName }}
       onGoToStart={onGoToStart}
       onSwitchWorkspace={onSwitchWorkspace}
+      onImportIdentity={onImportIdentity}
     >
       {(ctx: AppContextValue) => {
         // Wrapper functions that filter by hidden users

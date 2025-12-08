@@ -38,6 +38,8 @@ export interface UnifiedAppProps {
   onGoToStart?: () => void;
   // Callback to switch workspace without page reload
   onSwitchWorkspace?: (workspaceId: string) => void;
+  // Callback to import identity (handles state update without page reload)
+  onImportIdentity?: () => void;
 }
 
 /**
@@ -58,6 +60,7 @@ export function UnifiedApp({
   onCancelLoading,
   onGoToStart,
   onSwitchWorkspace,
+  onImportIdentity,
 }: UnifiedAppProps) {
   // In automerge-repo v2.x, use useDocHandle hook instead of repo.find()
   // Handle null docId case - hooks must be called unconditionally
@@ -124,6 +127,7 @@ export function UnifiedApp({
       identity={{ did: currentUserDid, displayName }}
       onGoToStart={onGoToStart}
       onSwitchWorkspace={onSwitchWorkspace}
+      onImportIdentity={onImportIdentity}
     >
       {(ctx: AppContextValue) => (
         <>

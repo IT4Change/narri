@@ -24,6 +24,7 @@ import {
   loadDocumentId,
   saveDocumentId,
   clearDocumentId,
+  importIdentityFromFile,
 } from '../utils/storage';
 import {
   loadUserDocId,
@@ -107,6 +108,9 @@ export interface AppShellChildProps {
 
   // Callback to switch workspace without page reload
   onSwitchWorkspace: (workspaceId: string) => void;
+
+  // Callback to import identity (handles state update without page reload)
+  onImportIdentity: () => void;
 }
 
 export interface AppShellProps<TDoc> {
@@ -484,23 +488,16 @@ export function AppShell<TDoc>({
     if (enableUserDocument) {
       clearUserDocId();
     }
+    // Clear workspace list since it's tied to the identity
+    localStorage.removeItem('narrativeWorkspaces');
+    // Clear current document for this app
+    clearDocumentId(storagePrefix);
 
-    // Remove profile parameter from URL before reload to avoid landing on deleted user's profile
-    const hash = window.location.hash;
-    if (hash.includes('profile=')) {
-      const newHash = hash
-        .replace(/&?profile=[^&]+/, '')
-        .replace(/^#&/, '#')
-        .replace(/&#/, '#');
-      if (newHash === '#' || newHash === '') {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-      } else {
-        history.replaceState(null, '', window.location.pathname + window.location.search + newHash);
-      }
-    }
+    // Clear URL hash completely to go back to start screen
+    history.replaceState(null, '', window.location.pathname + window.location.search);
 
     window.location.reload();
-  }, [enableUserDocument]);
+  }, [enableUserDocument, storagePrefix]);
 
   const handleNewDocument = useCallback(async (workspaceName?: string, workspaceAvatar?: string) => {
     const identity = storedIdentityRef.current || loadSharedIdentity();
@@ -607,6 +604,37 @@ export function AppShell<TDoc>({
     loadWorkspaceDocument(docUrl);
   }, [loadWorkspaceDocument]);
 
+  // Handler for identity import - updates state without page reload
+  const handleImportIdentity = useCallback(() => {
+    importIdentityFromFile(
+      (importedIdentity) => {
+        console.log('[AppShell] Identity imported:', importedIdentity.did);
+        // Update identity state
+        setCurrentUserDid(importedIdentity.did);
+        setPrivateKey(importedIdentity.privateKey);
+        setPublicKey(importedIdentity.publicKey);
+        setDisplayName(importedIdentity.displayName);
+        storedIdentityRef.current = importedIdentity;
+
+        // Go to start screen to show imported profile
+        setDocumentId(null);
+        clearDocumentId(storagePrefix);
+        setIsOnboarding(true);
+
+        // Set URL to show profile - preserve clean state
+        window.location.hash = `profile=${encodeURIComponent(importedIdentity.did)}`;
+
+        // Re-initialize UserDocument with imported identity (loads from restored userDocUrl)
+        if (enableUserDocument) {
+          initializeUserDocument(importedIdentity);
+        }
+      },
+      (error) => {
+        console.error('[AppShell] Import failed:', error);
+      }
+    );
+  }, [storagePrefix, enableUserDocument, initializeUserDocument]);
+
   // Show basic loading while initializing identity and user document
   // Once identity is ready, we render the shell even if workspace is still loading
   if (isInitializing || !currentUserDid) {
@@ -650,6 +678,7 @@ export function AppShell<TDoc>({
         onCancelLoading: handleCancelLoading,
         onGoToStart: handleGoToStart,
         onSwitchWorkspace: handleSwitchWorkspace,
+        onImportIdentity: handleImportIdentity,
         // Workspace loading state (when document is still loading)
         workspaceLoading,
         // User Document (only if enabled)

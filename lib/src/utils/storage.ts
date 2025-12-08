@@ -19,6 +19,7 @@ const SHARED_IDENTITY_KEY = 'narrative_shared_identity';
  */
 export interface StoredIdentity extends UserIdentity {
   privateKey?: string;  // Base64-encoded Ed25519 private key (stored locally only)
+  userDocUrl?: string;  // UserDocument Automerge URL (only used during export/import)
 }
 
 /**
@@ -117,6 +118,7 @@ export function clearDocumentId(appPrefix: string): void {
 
 /**
  * Export identity to a downloadable JSON file
+ * Includes UserDocument URL so it can be restored on import
  *
  * @param filename - Optional custom filename (defaults to 'narrative-identity-{timestamp}.json')
  */
@@ -127,7 +129,14 @@ export function exportIdentityToFile(filename?: string): void {
     return;
   }
 
-  const blob = new Blob([JSON.stringify(identity)], { type: 'application/json' });
+  // Include UserDocument URL so it can be restored on import
+  const userDocUrl = localStorage.getItem('narrative_user_doc_id');
+  const exportData: StoredIdentity = {
+    ...identity,
+    ...(userDocUrl ? { userDocUrl } : {}),
+  };
+
+  const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -140,12 +149,13 @@ export function exportIdentityToFile(filename?: string): void {
 
 /**
  * Import identity from a file picker dialog
+ * Restores UserDocument URL if present in the export file
  *
- * @param onSuccess - Optional callback on successful import (before reload)
+ * @param onSuccess - Callback on successful import with the imported identity (without userDocUrl)
  * @param onError - Optional callback on error
  */
 export function importIdentityFromFile(
-  onSuccess?: () => void,
+  onSuccess?: (identity: StoredIdentity) => void,
   onError?: (error: string) => void
 ): void {
   const input = document.createElement('input');
@@ -159,15 +169,23 @@ export function importIdentityFromFile(
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        const importedIdentity = JSON.parse(content) as StoredIdentity;
+        const importedData = JSON.parse(content) as StoredIdentity;
 
-        if (!importedIdentity.did) {
+        if (!importedData.did) {
           throw new Error('Invalid identity file: missing DID');
         }
 
-        saveSharedIdentity(importedIdentity);
-        onSuccess?.();
-        window.location.reload();
+        // Restore UserDocument URL if present (so existing UserDocument is loaded)
+        if (importedData.userDocUrl) {
+          localStorage.setItem('narrative_user_doc_id', importedData.userDocUrl);
+        }
+
+        // Save identity without userDocUrl (it's stored separately)
+        const { userDocUrl, ...identityWithoutUrl } = importedData;
+        saveSharedIdentity(identityWithoutUrl);
+
+        // Call success callback with imported identity - caller decides what to do next
+        onSuccess?.(identityWithoutUrl);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Ungültige Identity-Datei';
         onError?.(message);
