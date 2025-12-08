@@ -176,6 +176,12 @@ export function StartContent({
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && workspaceName.trim() && handleCreateSubmit()}
+                    onFocus={(e) => {
+                      // Scroll input into view when keyboard appears on mobile
+                      setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 300);
+                    }}
                     autoFocus
                   />
                   <div className="flex gap-2">
