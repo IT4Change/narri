@@ -10,6 +10,7 @@ import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks
 import { AppLayout, type AppContextValue, type UserDocument, type WorkspaceLoadingState, type ContentState } from 'narrative-ui';
 import { UnifiedDocument, AVAILABLE_MODULES, ModuleId } from './types';
 import { ModuleSwitcher } from './components/ModuleSwitcher';
+import { BottomNav } from './components/BottomNav';
 import { NarrativeModuleWrapper } from './components/NarrativeModuleWrapper';
 import { MarketModuleWrapper } from './components/MarketModuleWrapper';
 import { MapModuleWrapper } from './components/MapModuleWrapper';
@@ -73,16 +74,6 @@ export function UnifiedApp({
   // App-specific UI state
   const [activeModule, setActiveModule] = useState<ModuleId>('narrative');
 
-  // Module Switcher component for navbar
-  const moduleSwitcher = doc ? (
-    <ModuleSwitcher
-      modules={AVAILABLE_MODULES}
-      enabledModules={doc.enabledModules || { narrative: true }}
-      activeModule={activeModule}
-      onModuleChange={setActiveModule}
-    />
-  ) : null;
-
   // Callback for updating identity in the document
   const handleUpdateIdentityInDoc = (updates: { displayName?: string; avatarUrl?: string }) => {
     if (!docHandle) return;
@@ -115,7 +106,6 @@ export function UnifiedApp({
       onResetIdentity={onResetIdentity}
       onCreateWorkspace={onNewDocument}
       onUpdateIdentityInDoc={handleUpdateIdentityInDoc}
-      navbarChildren={moduleSwitcher}
       userDocHandle={userDocHandle}
       userDoc={userDoc}
       userDocUrl={userDocHandle?.url}
@@ -133,8 +123,19 @@ export function UnifiedApp({
         <>
           {/* Module Content */}
           {activeModule === 'map' ? (
-            // Map module: fullscreen flex layout with min-h-0 for proper flex shrinking
-            <div className="flex-1 min-h-0 relative overflow-hidden">
+            // Map module: fullscreen flex layout with ModuleSwitcher overlay
+            <div className="flex-1 min-h-0 relative overflow-hidden pb-14 md:pb-0">
+              {/* ModuleSwitcher as overlay on map - hidden on mobile */}
+              {doc && (
+                <div className="hidden md:flex absolute top-4 left-1/2 -translate-x-1/2 z-500">
+                  <ModuleSwitcher
+                    modules={AVAILABLE_MODULES}
+                    enabledModules={doc.enabledModules || { narrative: true }}
+                    activeModule={activeModule}
+                    onModuleChange={setActiveModule}
+                  />
+                </div>
+              )}
               {doc && docHandle && (
                 <MapModuleWrapper
                   doc={doc}
@@ -145,9 +146,20 @@ export function UnifiedApp({
               )}
             </div>
           ) : (
-            // Other modules: scrollable container with padding
+            // Other modules: scrollable container with ModuleSwitcher at top
             <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-              <div className="container mx-auto p-10 pt-8 pb-24 max-w-6xl w-full">
+              {/* ModuleSwitcher centered at top - hidden on mobile */}
+              {doc && (
+                <div className="hidden md:flex justify-center py-4 sticky top-0 z-10 bg-base-200">
+                  <ModuleSwitcher
+                    modules={AVAILABLE_MODULES}
+                    enabledModules={doc.enabledModules || { narrative: true }}
+                    activeModule={activeModule}
+                    onModuleChange={setActiveModule}
+                  />
+                </div>
+              )}
+              <div className="container mx-auto px-4 md:px-10 pb-24 md:pb-8 max-w-6xl w-full">
                 {activeModule === 'narrative' && doc?.data.narrative && docHandle && (
                   <NarrativeModuleWrapper
                     doc={doc}
@@ -167,6 +179,16 @@ export function UnifiedApp({
                 )}
               </div>
             </div>
+          )}
+
+          {/* Bottom Navigation for mobile - only shown when doc is loaded */}
+          {doc && (
+            <BottomNav
+              modules={AVAILABLE_MODULES}
+              enabledModules={doc.enabledModules || { narrative: true }}
+              activeModule={activeModule}
+              onModuleChange={setActiveModule}
+            />
           )}
         </>
       )}

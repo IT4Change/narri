@@ -22,18 +22,18 @@ export function ModuleSwitcher({
     (m) => enabledModules[m.id] !== false // Show if true or undefined (default enabled)
   );
 
+  // Hidden on mobile (shown via BottomNav), visible on md+ screens
   return (
-    <div role="tablist" className="tabs tabs-boxed bg-base-200">
+    <div className="hidden md:flex bg-base-200 rounded-lg p-1">
       {visibleModules.map((module) => (
         <button
           key={module.id}
-          role="tab"
-          className={`tab gap-2 ${activeModule === module.id ? 'tab-active' : ''}`}
+          className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors ${activeModule === module.id ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}`}
           onClick={() => onModuleChange(module.id)}
           title={module.description}
         >
-          <span className="text-lg">{module.icon}</span>
-          <span className="hidden sm:inline">{module.name}</span>
+          {module.icon}
+          <span>{module.name}</span>
         </button>
       ))}
     </div>

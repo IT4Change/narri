@@ -45,9 +45,9 @@ export function AssumptionList({
             className="btn btn-primary"
             onClick={onCreate}
           >
-            + New Assumption
+            + Neue Annahme
           </button>
-          <p className="mt-2 text-base-content/60">Create your first assumption to get started!</p>
+          <p className="mt-2 text-base-content/60">Erstelle deine erste Annahme, um loszulegen!</p>
         </div>
       </div>
     );

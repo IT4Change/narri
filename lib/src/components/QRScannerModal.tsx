@@ -203,16 +203,19 @@ export function QRScannerModal<TData = unknown>({
     return () => {
       const currentScanner = scannerRef.current;
       if (currentScanner) {
-        try {
-          const state = currentScanner.getState();
-          // Only try to stop if actually scanning
-          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-            currentScanner.stop().catch(() => { });
+        const cleanup = async () => {
+          try {
+            const state = currentScanner.getState();
+            // Only try to stop if actually scanning
+            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+              await currentScanner.stop();
+            }
+            currentScanner.clear();
+          } catch (error) {
+            // Ignore errors during cleanup
           }
-          currentScanner.clear();
-        } catch (error) {
-          // Ignore errors during cleanup
-        }
+        };
+        cleanup();
         scannerRef.current = null;
       }
     };
@@ -232,19 +235,19 @@ export function QRScannerModal<TData = unknown>({
     }
   }, [showOwnQR, confirmedDid, userDoc, userDoc?.trustReceived, confirmedUserName, onMutualTrustEstablished, onOpenProfile]);
 
-  const handleClose = () => {
+  const handleClose = async () => {
     // Stop and clear scanner if it exists
     if (scannerRef.current) {
       try {
         const state = scannerRef.current.getState();
         // Only try to stop if actually scanning
         if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-          scannerRef.current.stop().catch(() => { });
+          await scannerRef.current.stop();
         }
         scannerRef.current.clear();
         scannerRef.current = null;
       } catch (error) {
-        console.error('Error stopping scanner:', error);
+        // Ignore errors during cleanup
       }
     }
     setScannedDid(null);

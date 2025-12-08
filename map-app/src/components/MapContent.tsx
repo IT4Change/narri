@@ -179,16 +179,15 @@ export function MapContent({
       )}
 
       {/* Single FAB - Bottom Right */}
-      <div className="absolute bottom-8 right-6 z-[550]">
-        <button
-          className={`btn btn-circle btn-lg shadow-lg shadow-black/30 ${isPlacingMarker ? 'btn-secondary' : 'btn-primary'}`}
+      <button
+        className={`btn gap-2 fixed bottom-20 md:bottom-6 right-6 shadow-lg shadow-black/30 z-[550] ${isPlacingMarker ? 'btn-secondary' : 'btn-primary'}`}
           onClick={() => setIsPlacingMarker(!isPlacingMarker)}
           title={myLocation ? 'Standort aktualisieren' : 'Standort hinzufügen'}
         >
           {isPlacingMarker ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
+              className="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -203,7 +202,7 @@ export function MapContent({
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
+              className="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -216,8 +215,8 @@ export function MapContent({
               />
             </svg>
           )}
+          <span>{isPlacingMarker ? 'Abbrechen' : (myLocation ? 'Standort ändern' : 'Standort setzen')}</span>
         </button>
-      </div>
     </div>
   );
 }

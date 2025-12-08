@@ -200,7 +200,7 @@ export function MainView({
               </div>
 
               {/* Tabs */}
-              <div className="tabs tabs-boxed mb-4">
+              <div className="tabs tabs-box mb-4">
                 <button
                   className={`tab ${activeTab === 'wallet' ? 'tab-active' : ''}`}
                   onClick={() => setActiveTab('wallet')}

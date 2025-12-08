@@ -8,7 +8,7 @@
  * - Migration logic from localStorage to UserDocument
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { WorkspaceInfo } from './WorkspaceSwitcher';
 import { loadWorkspaceList, saveWorkspaceList, upsertWorkspace } from './WorkspaceSwitcher';
 import type { WorkspaceRef } from '../schema/userDocument';

@@ -231,9 +231,9 @@ export function CollaboratorsModal<TData = unknown>({
         </div>
 
         {/* Tabs */}
-        <div className="tabs tabs-boxed mb-4">
+        <div className="flex bg-base-200 rounded-lg p-1 mb-4">
           <button
-            className={`tab flex-1 gap-2 ${activeTab === 'list' ? 'tab-active' : ''}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors ${activeTab === 'list' ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}`}
             onClick={() => setActiveTab('list')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -242,7 +242,7 @@ export function CollaboratorsModal<TData = unknown>({
             Liste
           </button>
           <button
-            className={`tab flex-1 gap-2 ${activeTab === 'graph' ? 'tab-active' : ''}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors ${activeTab === 'graph' ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}`}
             onClick={() => setActiveTab('graph')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

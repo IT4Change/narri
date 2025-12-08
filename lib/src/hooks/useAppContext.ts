@@ -434,8 +434,8 @@ export function useAppContext<TData = unknown>(
   }, [doc, userDoc, repo, userDocUrl, documentId, trustedUserProfiles]);
 
   // Register own identity in workspace identityLookup on join
-  // Use a key to track last saved values and avoid infinite loops
-  const [lastIdentityLookupKey, setLastIdentityLookupKey] = useState('');
+  // Use a ref to track last saved values and avoid duplicate writes
+  const lastIdentityLookupKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (!docHandle || !identity || !doc) return;
@@ -444,7 +444,7 @@ export function useAppContext<TData = unknown>(
     const desiredKey = `${identity.did}|${identity.displayName || ''}|${identity.avatarUrl || ''}|${userDocUrl || ''}`;
 
     // Check if we already saved this
-    if (desiredKey === lastIdentityLookupKey) {
+    if (desiredKey === lastIdentityLookupKeyRef.current) {
       return;
     }
 
@@ -478,8 +478,8 @@ export function useAppContext<TData = unknown>(
       });
     }
 
-    setLastIdentityLookupKey(desiredKey);
-  }); // No dependencies - we check manually
+    lastIdentityLookupKeyRef.current = desiredKey;
+  }, [docHandle, identity, doc, userDocUrl]);
 
   // Validate and clean up trustReceived entries with invalid signatures
   // This runs whenever trustReceived changes (including initial load and remote updates)
@@ -538,7 +538,7 @@ export function useAppContext<TData = unknown>(
     };
 
     validateAndCleanup();
-  }, [userDocHandle, userDoc, userDoc?.trustReceived]);
+  }, [userDocHandle, userDoc?.trustReceived]);
 
   // Trust notifications detection (from User-Doc)
   // Verifies signatures before showing notifications
@@ -597,7 +597,7 @@ export function useAppContext<TData = unknown>(
     };
 
     verifyAndSetAttestations();
-  }, [userDoc, userDoc?.trustReceived, userDoc?.trustGiven, currentUserDid, documentId]);
+  }, [userDoc?.trustReceived, userDoc?.trustGiven, currentUserDid, documentId]);
 
   // Load profiles from trusted users' UserDocuments
   // This provides up-to-date avatars and display names for verified friends
@@ -1257,18 +1257,6 @@ export function useAppContext<TData = unknown>(
 
   // Auto-detect new mutual trust relationships (works even when QR modal is closed)
   useEffect(() => {
-    const trustGivenCount = userDoc?.trustGiven ? Object.keys(userDoc.trustGiven).length : 0;
-    const trustReceivedCount = userDoc?.trustReceived ? Object.keys(userDoc.trustReceived).length : 0;
-
-    console.log('[useAppContext] Mutual trust check triggered', {
-      hasTrustGiven: !!userDoc?.trustGiven,
-      hasTrustReceived: !!userDoc?.trustReceived,
-      trustGivenCount,
-      trustReceivedCount,
-      initialized: mutualFriendsInitializedRef.current,
-      previousCount: previousMutualFriendsRef.current.size,
-    });
-
     if (!userDoc?.trustGiven || !userDoc?.trustReceived) return;
 
     // Find all mutual friends (both directions exist)
@@ -1279,11 +1267,8 @@ export function useAppContext<TData = unknown>(
       }
     }
 
-    console.log('[useAppContext] Current mutual friends:', currentMutualFriends.size, Array.from(currentMutualFriends).map(d => d.substring(0, 12)));
-
     // On first run, just initialize the ref without triggering confetti
     if (!mutualFriendsInitializedRef.current) {
-      console.log('[useAppContext] Initializing mutual friends tracking with', currentMutualFriends.size, 'existing mutual friends');
       previousMutualFriendsRef.current = currentMutualFriends;
       mutualFriendsInitializedRef.current = true;
       return;
@@ -1294,7 +1279,6 @@ export function useAppContext<TData = unknown>(
       if (!previousMutualFriendsRef.current.has(did)) {
         // New mutual friend detected!
         const friendName = trustedUserProfiles[did]?.displayName || did.substring(0, 12) + '...';
-        console.log('[useAppContext] 🎉 Auto-detected NEW mutual trust:', did, friendName);
         handleMutualTrustEstablished(did, friendName);
       }
     }

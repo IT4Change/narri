@@ -18,24 +18,82 @@ export function LoadingScreen({ message }: LoadingScreenProps) {
     <div
       style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
         background: 'white',
+        gap: '16px',
       }}
     >
-      <svg viewBox="0 0 24 24" fill="none" style={{ width: '48px', height: '48px', animation: 'pulse 1.5s ease-in-out infinite' }}>
-        <path
-          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-          fill="#e11d48"
-        />
-      </svg>
+      <div className="network-loader">
+        {/* Center node */}
+        <div className="node center"></div>
+        {/* Outer nodes with connections */}
+        <div className="node n1"><div className="line"></div></div>
+        <div className="node n2"><div className="line"></div></div>
+        <div className="node n3"><div className="line"></div></div>
+        <div className="node n4"><div className="line"></div></div>
+        <div className="node n5"><div className="line"></div></div>
+      </div>
       <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.15); opacity: 0.8; }
+        .network-loader {
+          width: 80px;
+          height: 80px;
+          position: relative;
+        }
+        .network-loader .node {
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+        }
+        .network-loader .node.center {
+          left: 50%;
+          top: 50%;
+          background: #6366f1;
+          width: 16px;
+          height: 16px;
+          animation: nl-pulse 1.5s ease-in-out infinite;
+          z-index: 10;
+        }
+        .network-loader .node .line {
+          position: absolute;
+          height: 2px;
+          background: currentColor;
+        }
+        /* n1: top center (50%, 10%) - line goes down to center */
+        .network-loader .node.n1 { left: 50%; top: 10%; background: #10b981; animation: nl-pop 3s ease-in-out infinite 0s; }
+        .network-loader .node.n1 .line { width: 32px; left: 6px; top: 6px; transform: rotate(90deg); transform-origin: 0 0; background: #10b981; }
+
+        /* n2: top right (90%, 30%) - line goes to center (down-left) */
+        .network-loader .node.n2 { left: 90%; top: 30%; background: #3b82f6; animation: nl-pop 3s ease-in-out infinite 0.3s; }
+        .network-loader .node.n2 .line { width: 36px; left: 6px; top: 6px; transform: rotate(153deg); transform-origin: 0 0; background: #3b82f6; }
+
+        /* n3: bottom right (85%, 80%) - line goes to center (up-left) */
+        .network-loader .node.n3 { left: 85%; top: 80%; background: #f59e0b; animation: nl-pop 3s ease-in-out infinite 0.6s; }
+        .network-loader .node.n3 .line { width: 40px; left: 6px; top: 6px; transform: rotate(-139deg); transform-origin: 0 0; background: #f59e0b; }
+
+        /* n4: bottom left (15%, 75%) - line goes to center (up-right) */
+        .network-loader .node.n4 { left: 15%; top: 75%; background: #ec4899; animation: nl-pop 3s ease-in-out infinite 0.9s; }
+        .network-loader .node.n4 .line { width: 38px; left: 6px; top: 6px; transform: rotate(-36deg); transform-origin: 0 0; background: #ec4899; }
+
+        /* n5: top left (15%, 25%) - line goes to center (down-right) */
+        .network-loader .node.n5 { left: 15%; top: 25%; background: #8b5cf6; animation: nl-pop 3s ease-in-out infinite 1.2s; }
+        .network-loader .node.n5 .line { width: 34px; left: 6px; top: 6px; transform: rotate(36deg); transform-origin: 0 0; background: #8b5cf6; }
+
+        @keyframes nl-pulse {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.2); }
+        }
+        @keyframes nl-pop {
+          0%, 10% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+          20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
         }
       `}</style>
+      {message && <p style={{ color: '#64748b', fontSize: '14px' }}>{message}</p>}
     </div>
   );
 }

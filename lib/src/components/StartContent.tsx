@@ -39,16 +39,13 @@ export function StartContent({
 
   const handleCreateSubmit = () => {
     const trimmed = workspaceName.trim();
-    if (!trimmed) {
-      onCreateWorkspace('Neuer Workspace');
-    } else {
-      onCreateWorkspace(trimmed);
-    }
+    if (!trimmed) return; // Name is required
+    onCreateWorkspace(trimmed);
   };
 
   return (
     <div className="flex-1 overflow-y-auto flex justify-center p-4 py-8">
-      <div className="max-w-md w-full pb-16">
+      <div className="max-w-md w-full pb-20 md:pb-16">
         {/* Welcome Header with Web of Trust explanation */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-4">
@@ -65,8 +62,8 @@ export function StartContent({
           <div className="card bg-base-100 shadow-lg">
             <div className="card-body">
               <div className="flex items-center gap-2 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd"/>
                 </svg>
                 <span className="font-semibold">Dein Profil</span>
               </div>
@@ -103,8 +100,8 @@ export function StartContent({
           <div className="card bg-base-100 shadow-lg">
             <div className="card-body">
               <div className="flex items-center gap-2 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-1.01.75.75 0 00.42-.643 4.875 4.875 0 00-6.957-4.611 8.586 8.586 0 011.71 5.157v.003z"/>
                 </svg>
                 <span className="font-semibold">Web of Trust aufbauen</span>
               </div>
@@ -113,22 +110,29 @@ export function StartContent({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  className="btn btn-primary flex-col h-auto py-3 gap-1"
+                  className="btn btn-primary h-auto py-3 gap-1"
                   onClick={onOpenScanner}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 12v4a1 1 0 0 1-1 1h-4" />
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                    <path d="M17 8V7" />
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                    <path d="M7 17h.01" />
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                    <rect x="7" y="7" width="5" height="5" rx="1" />
                   </svg>
                   <span className="text-sm">QR scannen</span>
                 </button>
                 <button
-                  className="btn btn-outline flex-col h-auto py-3 gap-1"
+                  className="btn btn-outline h-auto py-3 gap-1"
                   onClick={onShowMyQR}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
-                  <span className="text-sm">Mein QR zeigen</span>
+                  <span className="text-sm">QR anzeigen</span>
                 </button>
               </div>
             </div>
@@ -143,8 +147,8 @@ export function StartContent({
           <div className="card bg-base-100 shadow-lg">
             <div className="card-body">
               <div className="flex items-center gap-2 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M5.566 4.657A4.505 4.505 0 016.75 4.5h10.5c.41 0 .806.055 1.183.157A3 3 0 0015.75 3h-7.5a3 3 0 00-2.684 1.657zM2.25 12a3 3 0 013-3h13.5a3 3 0 013 3v6a3 3 0 01-3 3H5.25a3 3 0 01-3-3v-6zM5.25 7.5c-.41 0-.806.055-1.184.157A3 3 0 016.75 6h10.5a3 3 0 012.683 1.657A4.505 4.505 0 0018.75 7.5H5.25z"/>
                 </svg>
                 <span className="font-semibold">Workspace</span>
               </div>
@@ -168,10 +172,10 @@ export function StartContent({
                   <input
                     type="text"
                     className="input input-bordered w-full"
-                    placeholder="Name des Workspace (optional)"
+                    placeholder="Name des Workspace"
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateSubmit()}
+                    onKeyDown={(e) => e.key === 'Enter' && workspaceName.trim() && handleCreateSubmit()}
                     autoFocus
                   />
                   <div className="flex gap-2">
@@ -187,6 +191,7 @@ export function StartContent({
                     <button
                       className="btn btn-primary flex-1"
                       onClick={handleCreateSubmit}
+                      disabled={!workspaceName.trim()}
                     >
                       Erstellen
                     </button>

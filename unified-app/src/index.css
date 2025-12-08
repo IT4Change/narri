@@ -1,6 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "../index.html";
+@source "./**/*.{js,ts,jsx,tsx}";
+@source "../../lib/src/**/*.{js,ts,jsx,tsx}";
+@source "../../narrative-app/src/**/*.{js,ts,jsx,tsx}";
+@source "../../market-app/src/**/*.{js,ts,jsx,tsx}";
+@source "../../map-app/src/**/*.{js,ts,jsx,tsx}";
+
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -18,4 +27,11 @@ body {
 #root {
   width: 100%;
   height: 100vh;
+}
+
+/* Hide Leaflet attribution link and separator */
+.leaflet-attribution-flag,
+a[href="https://leafletjs.com"],
+a[href="https://leafletjs.com"] + span[aria-hidden="true"] {
+  display: none !important;
 }

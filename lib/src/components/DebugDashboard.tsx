@@ -424,7 +424,7 @@ export function DebugDashboard({
         </div>
 
         {/* Main View Tabs */}
-        <div className="tabs tabs-boxed mb-4 bg-base-200 p-2 rounded-lg">
+        <div className="tabs tabs-box mb-4 bg-base-200 p-2 rounded-lg">
           <button
             className={`tab tab-lg ${mainViewTab === 'documents' ? 'tab-active' : ''}`}
             onClick={() => setMainViewTab('documents')}
@@ -512,7 +512,7 @@ export function DebugDashboard({
                 <div className="bg-base-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Document Data</h3>
-                    <div className="tabs tabs-boxed">
+                    <div className="tabs tabs-box">
                       <button
                         className={`tab ${dataViewTab === 'tree' ? 'tab-active' : ''}`}
                         onClick={() => setDataViewTab('tree')}

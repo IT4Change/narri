@@ -70,7 +70,7 @@ export function WorkspaceSwitcher({
             </span>
           </div>
         )}
-        <span className="hidden sm:inline max-w-[150px] truncate">{displayName}</span>
+        <span className="max-w-[150px] truncate">{displayName}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-4 w-4 opacity-70"
@@ -89,7 +89,7 @@ export function WorkspaceSwitcher({
 
       <ul
         tabIndex={0}
-        className="dropdown-content menu bg-base-100 rounded-box z-[2000] mt-4 w-64 p-2 shadow-lg"
+        className="dropdown-content menu bg-base-100 rounded-box z-2000 mt-4 w-64 p-2 shadow-lg"
       >
         {/* Start entry - shown when in start state */}
         {isStart && (
@@ -99,7 +99,7 @@ export function WorkspaceSwitcher({
             </li>
             <li>
               <a className="flex items-center gap-2 bg-base-200">
-                <div className="w-8 h-8 rounded bg-success/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded bg-success/20 flex items-center justify-center shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
@@ -122,7 +122,7 @@ export function WorkspaceSwitcher({
                 onClick={() => onOpenWorkspaceModal?.()}
               >
                 {currentWorkspace.avatar ? (
-                  <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                  <div className="w-8 h-8 rounded overflow-hidden shrink-0">
                     <img
                       src={currentWorkspace.avatar}
                       alt={currentWorkspace.name}
@@ -130,7 +130,7 @@ export function WorkspaceSwitcher({
                     />
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center shrink-0">
                     <span className="text-lg">
                       {currentWorkspace.name.charAt(0).toUpperCase()}
                     </span>
@@ -163,7 +163,7 @@ export function WorkspaceSwitcher({
                     onClick={() => onSwitchWorkspace(workspace.id)}
                   >
                     {workspace.avatar ? (
-                      <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                      <div className="w-8 h-8 rounded overflow-hidden shrink-0">
                         <img
                           src={workspace.avatar}
                           alt={workspace.name}
@@ -171,7 +171,7 @@ export function WorkspaceSwitcher({
                         />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded bg-base-300 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded bg-base-300 flex items-center justify-center shrink-0">
                         <span className="text-lg">
                           {workspace.name.charAt(0).toUpperCase()}
                         </span>
@@ -193,7 +193,7 @@ export function WorkspaceSwitcher({
                 className="flex items-center gap-3"
                 onClick={onGoToStart}
               >
-                <div className="w-8 h-8 rounded bg-success/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded bg-success/20 flex items-center justify-center shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
@@ -212,7 +212,7 @@ export function WorkspaceSwitcher({
             className="flex items-center gap-3 text-primary"
             onClick={onNewWorkspace}
           >
-            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"

@@ -242,9 +242,9 @@ export function NarrativeModule({
 
       {/* Floating New Assumption Button */}
       <button
-        className="btn btn-primary gap-2 fixed bottom-6 right-6 shadow-lg shadow-black/30 z-10"
+        className="btn btn-primary gap-2 fixed bottom-20 md:bottom-6 right-6 shadow-lg shadow-black/30 z-10"
         onClick={() => setIsCreateModalOpen(true)}
-        title="New Assumption"
+        title="Neue Annahme"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -260,7 +260,7 @@ export function NarrativeModule({
             d="M12 4v16m8-8H4"
           />
         </svg>
-        <span>New Assumption</span>
+        <span>Neue Annahme</span>
       </button>
 
       {/* Create Assumption Modal */}

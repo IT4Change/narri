@@ -4,10 +4,12 @@
  * Type definitions for multi-module documents.
  */
 
+import type { ReactNode } from 'react';
 import type { BaseDocument, UserIdentity } from 'narrative-ui';
 import type { OpinionGraphData } from 'narrative-app/schema';
 import type { MarketAppData } from 'market-app/schema';
 import type { MapData } from 'map-app/schema';
+import { NarrativeIcon, MapIcon, MarketIcon } from './moduleIcons';
 
 /**
  * Multi-module data structure
@@ -91,7 +93,7 @@ export type ModuleId = 'narrative' | 'map' | 'market';
 export interface ModuleInfo {
   id: ModuleId;
   name: string;
-  icon: string;
+  icon: ReactNode;
   description: string;
   available: boolean;
 }
@@ -103,21 +105,21 @@ export const AVAILABLE_MODULES: ModuleInfo[] = [
   {
     id: 'narrative',
     name: 'Narrative',
-    icon: '💭',
+    icon: NarrativeIcon,
     description: 'Collaborative assumption tracking',
     available: true,
   },
   {
     id: 'map',
     name: 'Karte',
-    icon: '🗺️',
+    icon: MapIcon,
     description: 'Collaborative mapping',
     available: true,
   },
   {
     id: 'market',
     name: 'Marktplatz',
-    icon: '🛒',
+    icon: MarketIcon,
     description: 'Marketplace for offers and needs',
     available: true,
   },
