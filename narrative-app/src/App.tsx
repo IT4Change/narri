@@ -26,7 +26,6 @@ function App() {
       createEmptyDocument={createEmptyOpinionGraphDoc}
       storagePrefix="narrative"
       enableUserDocument
-      appTitle="Narrative"
     >
       {(props) => <MainView {...props} />}
     </AppShell>

@@ -26,7 +26,6 @@ function App() {
       createEmptyDocument={createEmptyDankWalletDoc}
       storagePrefix="dankWallet"
       enableUserDocument
-      appTitle="Dank"
     >
       {(props) => <MainView {...props} />}
     </AppShell>

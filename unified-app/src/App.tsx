@@ -32,7 +32,6 @@ function App() {
       createEmptyDocument={createEmptyUnifiedDoc}
       storagePrefix="unified"
       enableUserDocument
-      appTitle="Narrative"
     >
       {(props) => <UnifiedApp {...props} />}
     </AppShell>

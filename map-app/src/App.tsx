@@ -26,7 +26,6 @@ function App() {
       createEmptyDocument={createEmptyMapDoc}
       storagePrefix="map"
       enableUserDocument
-      appTitle="Narrative Map"
     >
       {(props) => <MapView {...props} />}
     </AppShell>

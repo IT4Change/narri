@@ -26,7 +26,6 @@ function App() {
       createEmptyDocument={createEmptyMarketAppDoc}
       storagePrefix="marketApp"
       enableUserDocument
-      appTitle="Marktplatz"
     >
       {(props) => <MainView {...props} />}
     </AppShell>
