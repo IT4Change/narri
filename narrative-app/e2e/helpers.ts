@@ -113,8 +113,8 @@ export async function createNewBoard(page: Page) {
  * Used when the app shows the Start content (no workspace loaded)
  */
 export async function createWorkspaceFromStart(page: Page) {
-  // Look for the "Neuen Workspace erstellen" button on the Start screen
-  const createButton = page.getByRole('button', { name: /neuen workspace erstellen/i });
+  // Look for the "Workspace erstellen" button on the Start screen
+  const createButton = page.getByRole('button', { name: /workspace erstellen/i });
 
   if (await createButton.isVisible({ timeout: 3000 }).catch(() => false)) {
     await createButton.click();
@@ -158,7 +158,7 @@ export async function ensureOnBoard(page: Page) {
   const url = page.url();
   if (!url.includes('#doc=')) {
     // Check if we're on the Start screen (new behavior)
-    const isStartScreen = await page.getByRole('button', { name: /neuen workspace erstellen/i })
+    const isStartScreen = await page.getByRole('button', { name: /workspace erstellen/i })
       .isVisible({ timeout: 2000 })
       .catch(() => false);
 

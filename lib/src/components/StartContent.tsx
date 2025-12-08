@@ -54,12 +54,9 @@ export function StartContent({
           <h1 className="text-3xl font-bold mb-4">
             Willkommen im{' '}<br className="sm:hidden" /><span className="whitespace-nowrap">Web of Trust</span>
           </h1>
-          <div className="flex gap-3 rounded-lg p-4">
-
             <p className="text-sm text-base-content/70">
-              Hier kannst du Inhalte gezielt mit vertrauten Personen teilen.
+              Hier kannst du Inhalte{' '}<br className="sm:hidden" />gezielt mit vertrauten Personen teilen.
             </p>
-          </div>
         </div>
 
         {/* Action Cards */}
