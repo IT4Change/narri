@@ -154,6 +154,14 @@ export function useKnownProfiles({
   // Helper to update a profile in state
   const updateProfile = useCallback(
     (did: string, profile: Omit<KnownProfile, 'did'>) => {
+      console.log('[useKnownProfiles] updateProfile called:', {
+        did: did.substring(0, 30),
+        displayName: profile.displayName,
+        avatarUrl: !!profile.avatarUrl,
+        source: profile.source,
+        signatureStatus: profile.signatureStatus,
+      });
+
       setProfiles((prev) => {
         const newMap = new Map(prev);
         const existing = newMap.get(did);
@@ -171,6 +179,7 @@ export function useKnownProfiles({
         if (existing && sourcePriority[existing.source] > sourcePriority[profile.source]) {
           // Keep existing profile with higher priority source, but update profile data if new is fresher
           if (profile.lastUpdated > existing.lastUpdated) {
+            console.log('[useKnownProfiles] Updating existing profile (fresher data):', did.substring(0, 30));
             newMap.set(did, {
               ...existing,
               displayName: profile.displayName ?? existing.displayName,
@@ -178,10 +187,13 @@ export function useKnownProfiles({
               signatureStatus: profile.signatureStatus,
               lastUpdated: profile.lastUpdated,
             });
+          } else {
+            console.log('[useKnownProfiles] Skipping update (existing has higher priority):', did.substring(0, 30));
           }
           return newMap;
         }
 
+        console.log('[useKnownProfiles] Setting new profile:', did.substring(0, 30));
         newMap.set(did, { did, ...profile });
         return newMap;
       });

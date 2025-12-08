@@ -361,6 +361,17 @@ export function QRScannerModal<TData = unknown>({
     const displayName = knownProfile?.displayName || loadedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(scannedDid);
     const avatarUrl = knownProfile?.avatarUrl || loadedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
 
+    // Debug: Log profile sources to understand what's happening
+    console.log('[QRScannerModal] Profile resolution:', {
+      scannedDid: scannedDid?.substring(0, 30),
+      knownProfilesSize: knownProfiles?.size,
+      hasKnownProfile: !!knownProfile,
+      knownProfileData: knownProfile ? { displayName: knownProfile.displayName, avatarUrl: !!knownProfile.avatarUrl, source: knownProfile.source } : null,
+      loadedProfile: loadedProfile ? { displayName: loadedProfile.displayName, avatarUrl: !!loadedProfile.avatarUrl } : null,
+      finalDisplayName: displayName,
+      finalAvatarUrl: !!avatarUrl,
+    });
+
     // Use signature status from knownProfiles if available, otherwise use local status
     const effectiveSignatureStatus = knownProfile?.signatureStatus || signatureStatus;
 
