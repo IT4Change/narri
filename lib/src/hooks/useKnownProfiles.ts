@@ -415,9 +415,15 @@ export function useKnownProfiles({
   // Register external doc (e.g., from QR scanner)
   const registerExternalDoc = useCallback(
     (userDocUrl: string) => {
-      if (externalDocsRef.current.has(userDocUrl)) return;
+      console.log(`[useKnownProfiles] registerExternalDoc called: ${userDocUrl.substring(0, 40)}...`);
+
+      if (externalDocsRef.current.has(userDocUrl)) {
+        console.log(`[useKnownProfiles] Doc already registered, skipping: ${userDocUrl.substring(0, 40)}...`);
+        return;
+      }
       externalDocsRef.current.add(userDocUrl);
 
+      console.log(`[useKnownProfiles] Starting loadAndSubscribe for: ${userDocUrl.substring(0, 40)}...`);
       // Load and subscribe
       loadAndSubscribe(userDocUrl, null, 'external');
     },
