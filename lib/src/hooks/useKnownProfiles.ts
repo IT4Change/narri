@@ -71,7 +71,7 @@ export interface TrackedDocInfo {
 const DOC_LOAD_TIMEOUT = 8000;
 
 /** Max retry attempts for document loading */
-const MAX_RETRY_ATTEMPTS = 5;
+const MAX_RETRY_ATTEMPTS = 10;
 
 /** Delay between retries (ms) - exponential backoff starting point */
 const RETRY_DELAY_BASE = 1000;
