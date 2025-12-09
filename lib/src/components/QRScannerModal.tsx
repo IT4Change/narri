@@ -321,7 +321,7 @@ export function QRScannerModal<TData = unknown>({
 
     // Only show real name if we have it, otherwise show loading placeholder
     const displayName = knownProfile?.displayName || loadedProfile?.displayName || workspaceProfile?.displayName ||
-      (isProfileLoading ? 'Profil wird geladen...' : getDefaultDisplayName(scannedDid));
+      (isProfileLoading ? 'Profil wird geladen' : getDefaultDisplayName(scannedDid));
     const avatarUrl = knownProfile?.avatarUrl || loadedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
 
     // Debug: Log profile sources to understand what's happening
@@ -442,8 +442,7 @@ export function QRScannerModal<TData = unknown>({
           {isProfileLoading ? (
             <div className="alert alert-warning py-2 justify-center text-center">
               <span className="text-sm">
-                <span className="loading loading-dots loading-xs mr-1"></span>
-                Profil wird im Netzwerk gesucht.
+              Bitte warte während das Profil im Netzwerk gesucht wird! 
               </span>
             </div>
           ) : (
