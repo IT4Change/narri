@@ -260,10 +260,10 @@ export function UserProfileModal<TData = unknown>({
     return null;
   };
 
-  // QR Code value
+  // QR Code value - includes displayName for immediate verification before sync
   const qrValue = userDocUrl
-    ? `narrative://verify/${did}?userDoc=${encodeURIComponent(userDocUrl)}`
-    : `narrative://verify/${did}`;
+    ? `narrative://verify/${did}?userDoc=${encodeURIComponent(userDocUrl)}&name=${encodeURIComponent(displayName)}`
+    : `narrative://verify/${did}?name=${encodeURIComponent(displayName)}`;
 
   return (
     <div className="modal modal-open z-[9999]">
@@ -492,7 +492,7 @@ export function UserProfileModal<TData = unknown>({
                       </span>
                     )}
                     {profileSignatureStatus === 'pending' && (
-                      <span className="tooltip tooltip-top" data-tip="Profil wird geprüft...">
+                      <span className="tooltip tooltip-top" data-tip="Profil wird geladen...">
                         <span className="loading loading-spinner loading-xs"></span>
                       </span>
                     )}

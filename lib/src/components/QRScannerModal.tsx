@@ -53,6 +53,7 @@ export function QRScannerModal<TData = unknown>({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scannedDid, setScannedDid] = useState<string | null>(null);
   const [scannedUserDocUrl, setScannedUserDocUrl] = useState<string | null>(null);
+  const [scannedName, setScannedName] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
   const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('pending');
@@ -135,18 +136,22 @@ export function QRScannerModal<TData = unknown>({
           },
           (decodedText) => {
             // Parse the scanned QR code
-            // Format: narrative://verify/{did}?userDoc={encodedUrl}
+            // Format: narrative://verify/{did}?userDoc={encodedUrl}&name={encodedName}
             const match = decodedText.match(/narrative:\/\/verify\/([^?]+)(\?.*)?/);
             if (match && match[1]) {
               const did = match[1];
               setScannedDid(did);
 
-              // Extract userDocUrl if present
+              // Extract userDocUrl and name if present
               if (match[2]) {
                 const params = new URLSearchParams(match[2]);
                 const userDocUrl = params.get('userDoc');
                 if (userDocUrl) {
                   setScannedUserDocUrl(decodeURIComponent(userDocUrl));
+                }
+                const name = params.get('name');
+                if (name) {
+                  setScannedName(decodeURIComponent(name));
                 }
               }
 
@@ -226,6 +231,7 @@ export function QRScannerModal<TData = unknown>({
     }
     setScannedDid(null);
     setScannedUserDocUrl(null);
+    setScannedName(null);
     setScanError('');
     setIsScanning(false);
     setSignatureStatus('pending');
@@ -244,9 +250,9 @@ export function QRScannerModal<TData = unknown>({
       hasOnTrustUser: !!onTrustUser
     });
     if (scannedDid) {
-      // Get display name before clearing state
+      // Get display name before clearing state - prefer loaded profile, then scanned name from QR, then fallback
       const workspaceProfile = doc?.identities?.[scannedDid];
-      const userName = loadedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(scannedDid);
+      const userName = loadedProfile?.displayName || workspaceProfile?.displayName || scannedName || getDefaultDisplayName(scannedDid);
 
       console.log('[QRScannerModal] Calling onTrustUser with:', scannedDid, scannedUserDocUrl);
       onTrustUser(scannedDid, scannedUserDocUrl ?? undefined);
@@ -259,6 +265,7 @@ export function QRScannerModal<TData = unknown>({
         // Clear scanned data but keep modal open
         setScannedDid(null);
         setScannedUserDocUrl(null);
+        setScannedName(null);
         setLoadedProfile(null);
         setSignatureStatus('pending');
       } else {
@@ -276,7 +283,7 @@ export function QRScannerModal<TData = unknown>({
   if (showOwnQR && userDocUrl) {
     const ownProfile = doc?.identities?.[currentUserDid];
     const ownDisplayName = ownProfile?.displayName || getDefaultDisplayName(currentUserDid);
-    const ownQrValue = `narrative://verify/${currentUserDid}?userDoc=${encodeURIComponent(userDocUrl)}`;
+    const ownQrValue = `narrative://verify/${currentUserDid}?userDoc=${encodeURIComponent(userDocUrl)}&name=${encodeURIComponent(ownDisplayName)}`;
 
     return (
       <div className="modal modal-open z-[9999]">
@@ -315,18 +322,16 @@ export function QRScannerModal<TData = unknown>({
     const knownProfile = getProfile?.(scannedDid) ?? knownProfiles?.get(scannedDid);
     const workspaceProfile = doc?.identities?.[scannedDid];
 
-    // Check if we're still loading profile data
-    const isProfileLoading = signatureStatus === 'loading' || signatureStatus === 'waiting' ||
-      (knownProfile?.signatureStatus === 'pending' && !knownProfile?.displayName);
-
-    // Only show real name if we have it, otherwise show loading placeholder
+    // Priority: verified profile > scanned name from QR > default
+    // scannedName is shown immediately from QR code before network sync completes
     const displayName = knownProfile?.displayName || loadedProfile?.displayName || workspaceProfile?.displayName ||
-      (isProfileLoading ? 'Profil wird geladen' : getDefaultDisplayName(scannedDid));
+      scannedName || getDefaultDisplayName(scannedDid);
     const avatarUrl = knownProfile?.avatarUrl || loadedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
 
     // Debug: Log profile sources to understand what's happening
     console.log('[QRScannerModal] Profile resolution:', {
       scannedDid: scannedDid?.substring(0, 30),
+      scannedName,
       knownProfilesSize: knownProfiles?.size,
       hasKnownProfile: !!knownProfile,
       knownProfileData: knownProfile ? { displayName: knownProfile.displayName, avatarUrl: !!knownProfile.avatarUrl, source: knownProfile.source } : null,
@@ -344,7 +349,7 @@ export function QRScannerModal<TData = unknown>({
         // Show loading only for local states (knownProfile 'pending' means still loading)
         if (signatureStatus === 'loading' || signatureStatus === 'waiting') {
           return (
-            <span className="tooltip tooltip-top" data-tip={signatureStatus === 'waiting' ? "Warte auf Netzwerk..." : "Profil wird geprüft..."}>
+            <span className="tooltip tooltip-top" data-tip="Profil wird geladen...">
               <span className="loading loading-spinner loading-xs"></span>
             </span>
           );
@@ -439,43 +444,31 @@ export function QRScannerModal<TData = unknown>({
             </div>
           )}
 
-          {isProfileLoading ? (
-            <div className="alert alert-warning py-2 justify-center text-center">
-              <span className="text-sm">
-              Bitte warte während das Profil im Netzwerk gesucht wird! 
-              </span>
-            </div>
-          ) : (
-            <div className="alert alert-success py-2 justify-center text-center">
-              <span className="text-sm">
-                Hiermit bestätige ich die Identität von <span className="font-semibold">{displayName}</span> und füge sie in mein Netzwerk hinzu.
-              </span>
-            </div>
-          )}
+          <div className="alert alert-success py-2 justify-center text-center">
+            <span className="text-sm">
+              Hiermit bestätige ich die Identität von <span className="font-semibold">{displayName}</span> und füge sie in mein Netzwerk hinzu.
+            </span>
+          </div>
 
           <div className="modal-action">
             <button className="btn" onClick={handleClose}>
               Abbrechen
             </button>
-            <button className="btn btn-primary" onClick={handleTrust} disabled={isProfileLoading}>
-              {isProfileLoading ? (
-                <span className="loading loading-spinner loading-sm"></span>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              )}
+            <button className="btn btn-primary" onClick={handleTrust}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
               Bestätigen
             </button>
           </div>

@@ -403,9 +403,9 @@ describe('QRScannerModal Full Flow', () => {
 describe('QRScannerModal QR Code Format', () => {
   /**
    * Parse QR code value
-   * Format: narrative://verify/{did}?userDoc={encodedUrl}
+   * Format: narrative://verify/{did}?userDoc={encodedUrl}&name={encodedName}
    */
-  function parseQRCode(value: string): { did: string; userDocUrl?: string } | null {
+  function parseQRCode(value: string): { did: string; userDocUrl?: string; name?: string } | null {
     const match = value.match(/narrative:\/\/verify\/([^?]+)(\?.*)?/);
     if (!match || !match[1]) {
       return null;
@@ -413,6 +413,7 @@ describe('QRScannerModal QR Code Format', () => {
 
     const did = match[1];
     let userDocUrl: string | undefined;
+    let name: string | undefined;
 
     if (match[2]) {
       const params = new URLSearchParams(match[2]);
@@ -420,19 +421,28 @@ describe('QRScannerModal QR Code Format', () => {
       if (encodedUrl) {
         userDocUrl = decodeURIComponent(encodedUrl);
       }
+      const encodedName = params.get('name');
+      if (encodedName) {
+        name = decodeURIComponent(encodedName);
+      }
     }
 
-    return { did, userDocUrl };
+    return { did, userDocUrl, name };
   }
 
   /**
    * Generate QR code value
    */
-  function generateQRCode(did: string, userDocUrl?: string): string {
+  function generateQRCode(did: string, userDocUrl?: string, name?: string): string {
+    const params = new URLSearchParams();
     if (userDocUrl) {
-      return `narrative://verify/${did}?userDoc=${encodeURIComponent(userDocUrl)}`;
+      params.set('userDoc', userDocUrl);
     }
-    return `narrative://verify/${did}`;
+    if (name) {
+      params.set('name', name);
+    }
+    const queryString = params.toString();
+    return queryString ? `narrative://verify/${did}?${queryString}` : `narrative://verify/${did}`;
   }
 
   describe('parseQRCode', () => {
@@ -469,6 +479,31 @@ describe('QRScannerModal QR Code Format', () => {
 
       expect(result?.userDocUrl).toBe(userDocUrl);
     });
+
+    it('should parse QR code with DID, userDocUrl and name', () => {
+      const userDocUrl = 'automerge:abc123def456';
+      const name = 'Alice';
+      const qrValue = `narrative://verify/did:key:z6MkTest?userDoc=${encodeURIComponent(userDocUrl)}&name=${encodeURIComponent(name)}`;
+
+      const result = parseQRCode(qrValue);
+
+      expect(result).not.toBeNull();
+      expect(result?.did).toBe('did:key:z6MkTest');
+      expect(result?.userDocUrl).toBe(userDocUrl);
+      expect(result?.name).toBe(name);
+    });
+
+    it('should parse QR code with DID and name (no userDocUrl)', () => {
+      const name = 'Bob';
+      const qrValue = `narrative://verify/did:key:z6MkTest?name=${encodeURIComponent(name)}`;
+
+      const result = parseQRCode(qrValue);
+
+      expect(result).not.toBeNull();
+      expect(result?.did).toBe('did:key:z6MkTest');
+      expect(result?.userDocUrl).toBeUndefined();
+      expect(result?.name).toBe(name);
+    });
   });
 
   describe('generateQRCode', () => {
@@ -482,18 +517,46 @@ describe('QRScannerModal QR Code Format', () => {
       const userDocUrl = 'automerge:abc123';
       const qrValue = generateQRCode('did:key:z6MkTest', userDocUrl);
 
-      expect(qrValue).toBe(`narrative://verify/did:key:z6MkTest?userDoc=${encodeURIComponent(userDocUrl)}`);
+      expect(qrValue).toContain('narrative://verify/did:key:z6MkTest?');
+      expect(qrValue).toContain(`userDoc=${encodeURIComponent(userDocUrl)}`);
+    });
+
+    it('should generate QR code with DID, userDocUrl and name', () => {
+      const userDocUrl = 'automerge:abc123';
+      const name = 'Alice';
+      const qrValue = generateQRCode('did:key:z6MkTest', userDocUrl, name);
+
+      expect(qrValue).toContain('narrative://verify/did:key:z6MkTest?');
+      expect(qrValue).toContain(`userDoc=${encodeURIComponent(userDocUrl)}`);
+      expect(qrValue).toContain(`name=${encodeURIComponent(name)}`);
+    });
+
+    it('should generate QR code with DID and name (no userDocUrl)', () => {
+      const name = 'Bob';
+      const qrValue = generateQRCode('did:key:z6MkTest', undefined, name);
+
+      expect(qrValue).toBe(`narrative://verify/did:key:z6MkTest?name=${encodeURIComponent(name)}`);
     });
 
     it('should be reversible with parseQRCode', () => {
       const did = 'did:key:z6MkTest123';
       const userDocUrl = 'automerge:xyz789';
+      const name = 'Charlie';
 
-      const qrValue = generateQRCode(did, userDocUrl);
+      const qrValue = generateQRCode(did, userDocUrl, name);
       const parsed = parseQRCode(qrValue);
 
       expect(parsed?.did).toBe(did);
       expect(parsed?.userDocUrl).toBe(userDocUrl);
+      expect(parsed?.name).toBe(name);
+    });
+
+    it('should handle special characters in name', () => {
+      const name = 'Jürgen Müller-Schmidt';
+      const qrValue = generateQRCode('did:key:z6MkTest', undefined, name);
+      const parsed = parseQRCode(qrValue);
+
+      expect(parsed?.name).toBe(name);
     });
   });
 });
