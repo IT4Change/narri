@@ -360,7 +360,36 @@ export function useKnownProfiles({
     [currentUserDid, updateProfile, updateTrackedDoc]
   );
 
-  // Helper to load a UserDoc with retry logic (like AppShell pattern)
+  // Single document load attempt (same pattern as AppShell's loadDocumentWithRetry)
+  const loadDocumentOnce = useCallback(
+    async (docUrl: string): Promise<{ handle: DocHandle<UserDocument>; doc: UserDocument } | null> => {
+      if (!repo) return null;
+
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
+        });
+
+        const handle = await Promise.race([
+          repo.find<UserDocument>(docUrl as AutomergeUrl),
+          timeoutPromise,
+        ]);
+
+        const doc = handle.doc();
+        if (!doc) {
+          throw new Error('Document not found or empty');
+        }
+
+        return { handle, doc };
+      } catch (error) {
+        console.warn(`[useKnownProfiles] Load attempt failed for ${docUrl.substring(0, 30)}:`, error);
+        return null;
+      }
+    },
+    [repo]
+  );
+
+  // Helper to load a UserDoc with retry logic (exact same pattern as AppShell)
   // IMPORTANT: This callback must NOT depend on `profiles` to avoid infinite loops
   const loadAndSubscribe = useCallback(
     async (docUrl: string, expectedDid: string | null, source: ProfileSource) => {
@@ -395,55 +424,32 @@ export function useKnownProfiles({
         });
       }
 
-      // Retry loop with timeout (same pattern as AppShell)
-      for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
-        try {
-          console.log(`[useKnownProfiles] Loading attempt ${attempt}/${MAX_RETRY_ATTEMPTS} for: ${docUrl.substring(0, 30)}...`);
-          updateTrackedDoc(docUrl, { attempt });
+      // Retry loop with timeout (exact same pattern as AppShell)
+      for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+        console.log(`[useKnownProfiles] Loading attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS} for: ${docUrl.substring(0, 30)}...`);
+        updateTrackedDoc(docUrl, { attempt: attempt + 1 });
 
-          // Create timeout promise
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
-          });
-
-          // Use repo.find() with timeout (blocks until document is ready or timeout)
-          const handle = await Promise.race([
-            repo.find<UserDocument>(docUrl as AutomergeUrl),
-            timeoutPromise,
-          ]);
-
-          // Verify document was actually loaded
-          const doc = handle.doc();
-          if (!doc) {
-            throw new Error('Document not found or empty');
-          }
-
+        const result = await loadDocumentOnce(docUrl);
+        if (result) {
           console.log(`[useKnownProfiles] Doc loaded successfully: ${docUrl.substring(0, 30)}...`);
+          await processLoadedDoc(result.handle, result.doc, docUrl, expectedDid, source);
+          return result.handle;
+        }
 
-          // Process the loaded document
-          await processLoadedDoc(handle, doc, docUrl, expectedDid, source);
-
-          return handle;
-        } catch (err) {
-          console.warn(`[useKnownProfiles] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} failed for ${docUrl.substring(0, 30)}:`, err);
-
-          if (attempt < MAX_RETRY_ATTEMPTS) {
-            // Wait before retry with exponential backoff
-            const delay = RETRY_DELAY_BASE * Math.pow(2, attempt - 1);
-            console.log(`[useKnownProfiles] Retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          } else {
-            // All retries failed
-            console.error(`[useKnownProfiles] All ${MAX_RETRY_ATTEMPTS} attempts failed for: ${docUrl.substring(0, 30)}`);
-            updateTrackedDoc(docUrl, { status: 'timeout', error: String(err) });
-            return null;
-          }
+        // Wait before next retry (exponential backoff) - same formula as AppShell
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          const delay = RETRY_DELAY_BASE * Math.pow(2, attempt);
+          console.log(`[useKnownProfiles] Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
 
+      // All retries failed
+      console.error(`[useKnownProfiles] All ${MAX_RETRY_ATTEMPTS} attempts failed for: ${docUrl.substring(0, 30)}`);
+      updateTrackedDoc(docUrl, { status: 'timeout', error: 'All retries exhausted' });
       return null;
     },
-    [repo, updateProfile, updateTrackedDoc, processLoadedDoc]
+    [repo, updateProfile, updateTrackedDoc, processLoadedDoc, loadDocumentOnce]
   );
 
   // Register external doc (e.g., from QR scanner)
